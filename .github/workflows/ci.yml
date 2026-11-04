@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build, Test & Lint (Go + Shell + PHP)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: true
+
+      - name: Check LF line endings on scripts and configs
+        run: |
+          if grep -rnU $'\r' scripts/ plugin/ systemd/ Makefile 2>/dev/null; then
+            echo "Error: CRLF line endings detected in Linux scripts/configs!"
+            exit 1
+          fi
+
+      - name: Verify single-source version consistency (plugin.conf == version.go)
+        run: |
+          PLUGIN_VER="v$(awk -F= '/^version=/{print $2}' plugin/plugin.conf | tr -d '[:space:]')"
+          GO_VER="$(sed -n 's/.*Version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' internal/version/version.go | head -n 1)"
+          if [[ -z "$PLUGIN_VER" || "$PLUGIN_VER" != "$GO_VER" ]]; then
+            echo "Error: version mismatch between plugin/plugin.conf ($PLUGIN_VER) and internal/version/version.go ($GO_VER)"
+            exit 1
+          fi
+          echo "Verified version sync: $GO_VER"
+
+      - name: Verify gofmt formatting
+        run: |
+          UNFORMATTED="$(gofmt -l .)"
+          if [[ -n "$UNFORMATTED" ]]; then
+            echo "Error: the following Go files are not formatted with gofmt:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+
+      - name: Run go vet & staticcheck
+        run: |
+          go vet ./...
+          go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+
+      - name: Run unit tests with race detector
+        run: go test -v -race ./...
+
+      - name: Cross-compile static Linux binaries (amd64 & arm64)
+        run: |
+          make build-linux-amd64
+          make build-linux-arm64
+          ls -lh dist/
+          file dist/da-wptoolkit-linux-amd64
+          file dist/da-wptoolkit-linux-arm64
+
+      - name: Lint shell & CGI wrapper scripts (ShellCheck)
+        run: |
+          shopt -s globstar nullglob
+          shellcheck scripts/**/*.sh plugin/admin/api.raw plugin/user/api.raw plugin/admin/index.html plugin/user/index.html
+
+      - name: Lint PHP endpoints
+        run: |
+          php -l plugin/admin/api.php
+          php -l plugin/user/api.php

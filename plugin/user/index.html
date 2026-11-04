@@ -1,0 +1,2982 @@
+#!/bin/sh
+cat <<'DAWPTK_USER_HTML'
+<div id="dawptk-root" data-theme="light">
+  <script>
+    if (window.self !== window.top) {
+      document.documentElement.classList.add('dawptk-iframe');
+    }
+  </script>
+  <style>
+    html.dawptk-iframe, html.dawptk-iframe body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+    }
+    #dawptk-root {
+      --bg: #ffffff;
+      --surface: #f8fafc;
+      --surface-2: #f1f5f9;
+      --card-hdr: #eef2ff;
+      --card-hdr-border: #e0e7ff;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text: #0f172a;
+      --text-2: #334155;
+      --muted: #64748b;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --primary-btn: #6366f1;
+      --primary-soft: #eef2ff;
+      --green-bg: #dcfce7;
+      --green-text: #15803d;
+      --green-border: #bbf7d0;
+      --amber-bg: #fef3c7;
+      --amber-text: #b45309;
+      --amber-border: #fde68a;
+      --red-bg: #fee2e2;
+      --red-text: #b91c1c;
+      --red-border: #fecaca;
+      --slate-bg: #e2e8f0;
+      --slate-text: #334155;
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+      --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.18);
+
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 26px 28px;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      position: relative;
+      box-shadow: var(--shadow-sm);
+    }
+    html.dark #dawptk-root:not([data-user-theme="light"]),
+    body.dark #dawptk-root:not([data-user-theme="light"]),
+    [data-theme="dark"] #dawptk-root:not([data-user-theme="light"]),
+    #dawptk-root[data-theme="dark"] {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-2: #273549;
+      --card-hdr: #1e293b;
+      --card-hdr-border: #334155;
+      --border: #334155;
+      --border-strong: #475569;
+      --text: #f8fafc;
+      --text-2: #cbd5e1;
+      --muted: #94a3b8;
+      --primary: #818cf8;
+      --primary-hover: #6366f1;
+      --primary-btn: #6366f1;
+      --primary-soft: rgba(99, 102, 241, 0.16);
+      --green-bg: rgba(22, 163, 74, 0.2);
+      --green-text: #4ade80;
+      --green-border: rgba(74, 222, 128, 0.3);
+      --amber-bg: rgba(217, 119, 6, 0.2);
+      --amber-text: #fbbf24;
+      --amber-border: rgba(251, 191, 36, 0.3);
+      --red-bg: rgba(220, 38, 38, 0.2);
+      --red-text: #f87171;
+      --red-border: rgba(248, 113, 113, 0.3);
+      --slate-bg: #334155;
+      --slate-text: #e2e8f0;
+    }
+    #dawptk-root *, #dawptk-root *::before, #dawptk-root *::after {
+      box-sizing: border-box;
+    }
+    #dawptk-root button, #dawptk-root input, #dawptk-root select, #dawptk-root textarea {
+      font-family: inherit;
+      font-size: inherit;
+    }
+    #dawptk-root a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    #dawptk-root a:hover {
+      text-decoration: underline;
+    }
+
+    /* Top Header */
+    .wptk-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .wptk-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .wptk-brand-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .wptk-title {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+    .wptk-subtitle {
+      margin: 3px 0 0;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .wptk-top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .wptk-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 34px;
+      padding: 0 13px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-2);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.14s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .wptk-btn:hover:not(:disabled) {
+      background: var(--surface);
+      border-color: var(--border-strong);
+      color: var(--text);
+    }
+    .wptk-btn:disabled {
+      opacity: 0.52;
+      cursor: not-allowed;
+    }
+    .wptk-btn-primary {
+      background: var(--primary-btn);
+      border-color: var(--primary-btn);
+      color: #ffffff !important;
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(79, 70, 229, 0.22);
+    }
+    .wptk-btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+      color: #ffffff !important;
+    }
+    .wptk-btn-danger {
+      color: var(--red-text);
+      border-color: var(--red-border);
+    }
+    .wptk-btn-danger:hover:not(:disabled) {
+      background: var(--red-bg);
+      border-color: var(--red-text);
+      color: var(--red-text);
+    }
+    .wptk-btn-sm {
+      height: 29px;
+      padding: 0 10px;
+      font-size: 12px;
+      border-radius: 7px;
+    }
+    .wptk-btn-icon {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 8px;
+    }
+    .wptk-link-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--primary);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .wptk-link-btn:hover {
+      text-decoration: underline;
+    }
+
+    /* Global Tabs & Search Row */
+    .wptk-nav-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .wptk-gtabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .wptk-gtab {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 14px;
+      border: none;
+      border-bottom: 2.5px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 0.14s ease, border-color 0.14s ease;
+      margin-bottom: -1px;
+    }
+    .wptk-gtab:hover {
+      color: var(--text);
+    }
+    .wptk-gtab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .wptk-tab-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 19px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .wptk-gtab.active .wptk-tab-count {
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+    .wptk-search-wrap {
+      position: relative;
+      width: 275px;
+      max-width: 100%;
+      margin-bottom: 6px;
+    }
+    .wptk-search-icon {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+      display: flex;
+    }
+    .wptk-search-input {
+      width: 100%;
+      height: 35px;
+      padding: 0 12px 0 34px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 12.5px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .wptk-search-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+
+    /* Bulk Action Toolbar & View Switcher */
+    .wptk-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .wptk-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .wptk-check-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12.5px;
+      color: var(--text-2);
+      cursor: pointer;
+      padding-right: 6px;
+      user-select: none;
+    }
+    .wptk-checkbox {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--primary-btn);
+      cursor: pointer;
+      margin: 0;
+    }
+    .wptk-view-switch {
+      display: inline-flex;
+      align-items: center;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 2px;
+      gap: 2px;
+    }
+    .wptk-view-btn {
+      width: 30px;
+      height: 28px;
+      border: none;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .wptk-view-btn.active {
+      background: var(--primary-btn);
+      color: #ffffff;
+    }
+
+    /* Badges / Pills */
+    .wptk-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 22px;
+      padding: 0 8.5px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .wptk-pill-green {
+      background: var(--green-bg);
+      color: var(--green-text);
+      border: 1px solid var(--green-border);
+    }
+    .wptk-pill-amber {
+      background: var(--amber-bg);
+      color: var(--amber-text);
+      border: 1px solid var(--amber-border);
+    }
+    .wptk-pill-red {
+      background: var(--red-bg);
+      color: var(--red-text);
+      border: 1px solid var(--red-border);
+    }
+    .wptk-pill-slate {
+      background: var(--slate-bg);
+      color: var(--slate-text);
+    }
+    .wptk-pill-indigo {
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    /* 2-Column Instance Card (Reference Match) */
+    .wptk-inst-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .wptk-inst-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--bg);
+      overflow: hidden;
+      transition: box-shadow 0.16s ease, border-color 0.16s ease;
+    }
+    .wptk-inst-card:hover {
+      border-color: var(--border-strong);
+    }
+    .wptk-inst-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 16px;
+      background: var(--card-hdr);
+      border-bottom: 1px solid var(--card-hdr-border);
+      flex-wrap: wrap;
+    }
+    .wptk-inst-card.collapsed .wptk-inst-hdr {
+      border-bottom-color: transparent;
+    }
+    .wptk-inst-hdr-left {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+    .wptk-inst-domain {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .wptk-inst-hdr-right {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+    .wptk-inst-body {
+      display: grid;
+      grid-template-columns: 256px minmax(0, 1fr);
+      min-height: 360px;
+    }
+
+    /* Left Column: Mini Browser Preview & Telemetry */
+    .wptk-col-left {
+      padding: 18px 16px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .wptk-browser {
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--bg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .wptk-browser-bar {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .wptk-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .wptk-browser-url {
+      margin-left: 5px;
+      font-size: 10.5px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .wptk-browser-canvas {
+      padding: 22px 12px 20px;
+      background: linear-gradient(180deg, var(--primary-soft) 0%, var(--bg) 100%);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+    }
+    .wptk-browser-emblem {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-sm);
+    }
+    .wptk-browser-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .wptk-browser-theme {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .wptk-kv-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .wptk-kv-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .wptk-kv-val {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .wptk-path-foot {
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+    /* Right Column: 5 Sub-Tabs Workspace */
+    .wptk-col-right {
+      padding: 6px 22px 22px;
+      min-width: 0;
+    }
+    .wptk-subtabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 18px;
+      overflow-x: auto;
+    }
+    .wptk-subtab {
+      padding: 10px 13px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-bottom: -1px;
+    }
+    .wptk-subtab:hover {
+      color: var(--text);
+    }
+    .wptk-subtab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    /* Information & Tools Sub-Tab */
+    .wptk-sec-heading {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 12px;
+    }
+    .wptk-gen-grid {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      row-gap: 10px;
+      column-gap: 12px;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+    .wptk-gen-label {
+      color: var(--muted);
+    }
+    .wptk-gen-val {
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .wptk-tools-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .wptk-toggles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
+      gap: 12px;
+    }
+    .wptk-toggle-card {
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: 13px 14px;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 86px;
+    }
+    .wptk-toggle-name {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .wptk-toggle-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .wptk-toggle-note {
+      font-size: 11.5px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Animated Pill Switch */
+    .wptk-switch {
+      position: relative;
+      display: inline-block;
+      width: 38px;
+      height: 21px;
+      flex-shrink: 0;
+    }
+    .wptk-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      margin: 0;
+    }
+    .wptk-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: var(--border-strong);
+      border-radius: 999px;
+      transition: background-color 0.18s ease;
+    }
+    .wptk-slider::before {
+      position: absolute;
+      content: "";
+      height: 15px;
+      width: 15px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #ffffff;
+      border-radius: 50%;
+      transition: transform 0.18s ease;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    .wptk-switch input:checked + .wptk-slider {
+      background-color: var(--primary-btn);
+    }
+    .wptk-switch input:checked + .wptk-slider::before {
+      transform: translateX(17px);
+    }
+
+    /* Grid Tiles & Compact Table Views */
+    .wptk-tiles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 14px;
+    }
+    .wptk-tile {
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      padding: 16px;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .wptk-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+    }
+    .wptk-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    .wptk-table th {
+      text-align: left;
+      padding: 10px 13px;
+      background: var(--surface);
+      color: var(--muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .wptk-table td {
+      padding: 10px 13px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: middle;
+    }
+    .wptk-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Security Mode Cards & Diff Viewer */
+    .wptk-mode-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .wptk-mode-card {
+      border: 1.5px solid var(--border);
+      border-radius: 11px;
+      padding: 12px 14px;
+      background: var(--bg);
+      cursor: pointer;
+      transition: all 0.14s ease;
+    }
+    .wptk-mode-card.active {
+      border-color: var(--primary-btn);
+      background: var(--primary-soft);
+    }
+    .wptk-code-box {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11.5px;
+      line-height: 1.55;
+      max-height: 340px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .wptk-diff-add { color: #4ade80; }
+    .wptk-diff-del { color: #f87171; }
+    .wptk-diff-hdr { color: #93c5fd; font-weight: 600; }
+
+    /* Forms & Modals */
+    .wptk-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.52);
+      backdrop-filter: blur(2px);
+      z-index: 9998;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .wptk-modal {
+      width: 100%;
+      max-width: 640px;
+      max-height: 88vh;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .wptk-modal-lg { max-width: 820px; }
+    .wptk-modal-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .wptk-modal-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .wptk-modal-body {
+      padding: 18px 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .wptk-modal-foot {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .wptk-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .wptk-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .wptk-field label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-2);
+    }
+    .wptk-input, .wptk-select, .wptk-textarea {
+      width: 100%;
+      padding: 7px 11px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+    }
+    .wptk-input:focus, .wptk-select:focus, .wptk-textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+    .wptk-alert {
+      padding: 11px 14px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .wptk-alert-warn {
+      background: var(--amber-bg);
+      border-color: var(--amber-border);
+      color: var(--amber-text);
+    }
+    .wptk-alert-ok {
+      background: var(--green-bg);
+      border-color: var(--green-border);
+      color: var(--green-text);
+    }
+
+    /* Real-Time Job Drawer & Toasts */
+    .wptk-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 380px;
+      max-width: 92vw;
+      background: var(--bg);
+      border-left: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      z-index: 9997;
+      display: flex;
+      flex-direction: column;
+    }
+    .wptk-progress-track {
+      width: 100%;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .wptk-progress-bar {
+      height: 100%;
+      background: var(--primary-btn);
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+    .wptk-toasts {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 380px;
+    }
+    .wptk-toast {
+      padding: 11px 15px;
+      border-radius: 10px;
+      background: #0f172a;
+      color: #f8fafc;
+      font-size: 12.5px;
+      box-shadow: var(--shadow-md);
+      border-left: 4px solid var(--primary-btn);
+    }
+    .wptk-toast.err { border-left-color: #ef4444; }
+    .wptk-toast.ok { border-left-color: #22c55e; }
+    .wptk-empty {
+      padding: 42px 20px;
+      text-align: center;
+      border: 1px dashed var(--border-strong);
+      border-radius: 14px;
+      background: var(--surface);
+      color: var(--muted);
+    }
+    @keyframes wptkSpin { to { transform: rotate(360deg); } }
+    .wptk-spin { animation: wptkSpin 0.85s linear infinite; }
+
+    @media (max-width: 960px) {
+      #dawptk-root { padding: 16px; }
+      .wptk-inst-body { grid-template-columns: 1fr; }
+      .wptk-col-left { border-right: none; border-bottom: 1px solid var(--border); }
+      .wptk-search-wrap { width: 100%; }
+    }
+  </style>
+
+  <!-- Main App Mount -->
+  <div id="dawptk-app">
+    <div class="wptk-empty">Đang khởi tạo WordPress Manager...</div>
+  </div>
+  <div id="dawptk-modal-root"></div>
+  <div id="dawptk-drawer-root"></div>
+  <div id="dawptk-toasts" class="wptk-toasts"></div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var API_URL = '/CMD_PLUGINS/da_wp_toolkits/api.raw';
+    var rootEl = document.getElementById('dawptk-root');
+    var appEl = document.getElementById('dawptk-app');
+    var modalEl = document.getElementById('dawptk-modal-root');
+    var drawerEl = document.getElementById('dawptk-drawer-root');
+    var toastEl = document.getElementById('dawptk-toasts');
+
+    /* Inline Crisp Vector Icons */
+    var IC = {
+      wp: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M5.6 8.5 9.2 18l2.8-7.4L14.8 18l3.6-9.5"/></svg>',
+      refresh: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>',
+      search: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+      plus: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>',
+      shield: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>',
+      unlink: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18.84 12.25 1.72-1.71a4.5 4.5 0 0 0-6.36-6.36l-1.72 1.71"/><path d="m5.17 11.75-1.71 1.71a4.5 4.5 0 0 0 6.36 6.36l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/></svg>',
+      trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+      login: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>',
+      ext: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>',
+      chevUp: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>',
+      chevDn: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+      vCards: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="8" rx="2"/><rect x="3" y="13" width="18" height="8" rx="2"/></svg>',
+      vGrid: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+      vList: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+      clone: '<svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+      folder: '<svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+      archive: '<svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>',
+      zap: '<svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+      close: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+    };
+
+    /* Bilingual Dictionary (VI default matching Reference UI + EN) */
+    var I18N = {
+      vi: {
+        subtitle: 'Quản lý tập trung toàn bộ vòng đời Website WordPress: Cài đặt 1-Click, Đăng nhập SSO, Plugins, Themes, Clone/Staging & Bảo mật.',
+        refresh: 'Làm mới',
+        jobs: 'Tác vụ',
+        searchPh: 'Tìm kiếm tên miền, tiêu đề site...',
+        selectAll: 'Chọn tất cả',
+        emptySites: 'Chưa có website WordPress nào được quản lý. Bấm "+ Install" để cài đặt mới 1-Click hoặc "Scan" để tự động nhận diện các site sẵn có.',
+        allowGoogle: 'Cho phép Google',
+        blockGoogle: 'Chặn lập chỉ mục',
+        clearCache: 'Clear cache',
+        setup: 'Setup',
+        setupLog: 'Setup / Log',
+        sysCron: 'System Cron',
+        wpCronDefault: 'Mặc định WP'
+      },
+      en: {
+        subtitle: 'Centralized WordPress lifecycle management: 1-Click Install, Passwordless SSO, Plugins, Themes, Clone/Staging & Core Shield.',
+        refresh: 'Refresh',
+        jobs: 'Tasks',
+        searchPh: 'Search domain, site title...',
+        selectAll: 'Select all',
+        emptySites: 'No WordPress instances registered yet. Click "+ Install" for 1-Click setup or "Scan" to auto-discover existing sites.',
+        allowGoogle: 'Allow Google',
+        blockGoogle: 'Noindex active',
+        clearCache: 'Clear cache',
+        setup: 'Setup',
+        setupLog: 'Setup / Log',
+        sysCron: 'System Cron',
+        wpCronDefault: 'Default wp-cron'
+      }
+    };
+
+    /* Reactive Client State */
+    var S = {
+      lang: localStorage.getItem('dawptk_lang') || 'vi',
+      theme: localStorage.getItem('dawptk_theme') || '',
+      csrf: '',
+      version: '',
+      username: '',
+      pkg: '',
+      policy: {},
+      domains: [],
+      instances: [],
+      sets: [],
+      jobs: [],
+      globalTab: 'instances',
+      viewMode: localStorage.getItem('dawptk_view') || 'cards',
+      search: '',
+      selectedIds: {},
+      collapsedIds: {},
+      subTabs: {},
+      sitePlugins: {},
+      siteThemes: {},
+      siteSecurity: {},
+      siteTools: {},
+      siteQuarantine: {},
+      globalPlugins: null,
+      globalThemes: null,
+      extFilter: 'all',
+      drawerOpen: false,
+      loading: false,
+      jobTimer: null
+    };
+
+    function t(key) {
+      return (I18N[S.lang] && I18N[S.lang][key]) || I18N.vi[key] || key;
+    }
+
+    function applyTheme() {
+      if (S.theme === 'dark' || S.theme === 'light') {
+        rootEl.setAttribute('data-theme', S.theme);
+        rootEl.setAttribute('data-user-theme', S.theme);
+      } else {
+        var evoDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
+        rootEl.setAttribute('data-theme', evoDark ? 'dark' : 'light');
+      }
+    }
+    applyTheme();
+
+    function esc(val) {
+      if (val === null || val === undefined) return '';
+      return String(val)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function fmtBytes(bytes) {
+      var b = Number(bytes) || 0;
+      if (b < 1024) return b + ' B';
+      if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+      if (b < 1073741824) return (b / 1048576).toFixed(2) + ' MB';
+      return (b / 1073741824).toFixed(2) + ' GB';
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      var d = new Date(iso);
+      if (isNaN(d.getTime()) || d.getFullYear() < 2000) return '—';
+      return d.toLocaleString(S.lang === 'vi' ? 'vi-VN' : 'en-US', {
+        month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+      });
+    }
+
+    function toast(msg, kind) {
+      var div = document.createElement('div');
+      div.className = 'wptk-toast ' + (kind || '');
+      div.textContent = msg;
+      toastEl.appendChild(div);
+      setTimeout(function () {
+        if (div.parentNode) div.parentNode.removeChild(div);
+      }, 4200);
+    }
+
+    /* Zero-Trust IPC Fetch Helper */
+    var READ_ONLY_ACTIONS = {
+      ping: 1, get_bootstrap: 1, list_domains: 1, list_instances: 1, get_instance: 1,
+      list_plugins: 1, list_themes: 1, list_all_plugins: 1, list_all_themes: 1,
+      search_wporg: 1, get_vulns: 1, get_security_status: 1, get_tools_status: 1,
+      read_debug_log: 1, get_safe_wpconfig: 1, list_snapshots: 1, get_snapshot_download: 1,
+      list_quarantine: 1, get_quarantine_diff: 1, list_whitelist: 1, list_sets: 1,
+      list_jobs: 1, get_job: 1
+    };
+
+    function api(action, opts) {
+      opts = opts || {};
+      var isRead = !!READ_ONLY_ACTIONS[action] && !opts.forcePost;
+      var url = API_URL;
+      var fetchOpts = { credentials: 'same-origin', headers: {} };
+
+      if (isRead && !opts.params) {
+        var q = ['action=' + encodeURIComponent(action)];
+        if (opts.instance_id) q.push('instance_id=' + encodeURIComponent(opts.instance_id));
+        if (opts.job_id) q.push('job_id=' + encodeURIComponent(opts.job_id));
+        if (opts.limit) q.push('limit=' + encodeURIComponent(opts.limit));
+        url += '?' + q.join('&');
+      } else {
+        fetchOpts.method = 'POST';
+        fetchOpts.headers['Content-Type'] = 'application/json';
+        if (S.csrf) fetchOpts.headers['X-DAWPTK-CSRF'] = S.csrf;
+        fetchOpts.body = JSON.stringify({
+          action: action,
+          csrf_token: S.csrf,
+          instance_id: opts.instance_id || '',
+          job_id: opts.job_id || '',
+          limit: opts.limit || 0,
+          params: opts.params || {}
+        });
+      }
+
+      return fetch(url, fetchOpts)
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (res && res.csrf_token) S.csrf = res.csrf_token;
+          if (!res || !res.ok) {
+            throw new Error((res && res.error) ? res.error : ('IPC Error (' + action + ')'));
+          }
+          if (res.job_id) {
+            trackBackgroundJob(res.job_id);
+          }
+          return res;
+        });
+    }
+
+    /* Chunked 256KB Binary-Safe .zip Uploader (Supports up to 64 MB Themes/Plugins) */
+    function uploadExtensionZip(instanceId, kind, file, activate, onProgress) {
+      return new Promise(function (resolve, reject) {
+        if (!file || !/\.zip$/i.test(file.name)) {
+          return reject(new Error('Vui lòng chọn tệp nén định dạng .zip hợp lệ.'));
+        }
+        if (file.size > 67108864) {
+          return reject(new Error('Kích thước gói .zip vượt quá giới hạn 64 MB.'));
+        }
+        var randHex = '';
+        var arr = new Uint8Array(12);
+        if (window.crypto && window.crypto.getRandomValues) {
+          window.crypto.getRandomValues(arr);
+          for (var i = 0; i < arr.length; i++) randHex += ('0' + arr[i].toString(16)).slice(-2);
+        } else {
+          randHex = (Date.now().toString(16) + Math.random().toString(16).slice(2) + '000000000000').slice(0, 24);
+        }
+
+        var reader = new FileReader();
+        reader.onerror = function () { reject(new Error('Không thể đọc tệp .zip từ trình duyệt.')); };
+        reader.onload = function () {
+          var bytes = new Uint8Array(reader.result);
+          var chunkSize = 196608; // 192 KB raw -> 256 KB Base64 (< 512 KB POST cap)
+          var totalChunks = Math.max(1, Math.ceil(bytes.length / chunkSize));
+          var idx = 0;
+
+          function toB64(sub) {
+            var bin = '';
+            for (var k = 0; k < sub.length; k++) bin += String.fromCharCode(sub[k]);
+            return btoa(bin);
+          }
+
+          function nextChunk() {
+            var start = idx * chunkSize;
+            var end = Math.min(bytes.length, start + chunkSize);
+            var isLast = (idx === totalChunks - 1);
+            var b64 = toB64(bytes.subarray(start, end));
+            if (onProgress) onProgress(Math.round(((idx + 1) / totalChunks) * 100));
+
+            api('upload_zip_chunk', {
+              forcePost: true,
+              instance_id: instanceId,
+              params: {
+                upload_id: randHex,
+                chunk_index: idx,
+                chunk_base64: b64,
+                commit: isLast,
+                kind: kind,
+                activate: !!activate
+              }
+            }).then(function (res) {
+              idx++;
+              if (idx < totalChunks) nextChunk();
+              else resolve(res);
+            }).catch(reject);
+          }
+          nextChunk();
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    /* Real-Time Background Job Polling */
+    function hasRunningJobs() {
+      for (var i = 0; i < S.jobs.length; i++) {
+        if (S.jobs[i].status === 'queued' || S.jobs[i].status === 'running') return true;
+      }
+      return false;
+    }
+
+    function trackBackgroundJob() {
+      S.drawerOpen = true;
+      pollJobsNow();
+    }
+
+    function pollJobsNow() {
+      api('list_jobs', { limit: 15 }).then(function (res) {
+        var prevRunning = hasRunningJobs();
+        S.jobs = (res.data && res.data.jobs) || [];
+        renderDrawer();
+        renderTopJobBadge();
+        var nowRunning = hasRunningJobs();
+        if (prevRunning && !nowRunning) {
+          toast('Tác vụ nền đã hoàn tất!', 'ok');
+          loadBootstrap(true);
+        }
+        if (nowRunning) {
+          clearTimeout(S.jobTimer);
+          S.jobTimer = setTimeout(pollJobsNow, 1500);
+        }
+      }).catch(function () {});
+    }
+
+    function loadBootstrap(silent) {
+      if (!silent) S.loading = true;
+      return api('get_bootstrap').then(function (res) {
+        var d = res.data || {};
+        S.version = d.version || 'v0.6.0';
+        S.username = d.username || '';
+        S.pkg = d.package || '';
+        S.policy = d.policy || {};
+        S.domains = Array.isArray(d.domains) ? d.domains : [];
+        S.instances = Array.isArray(d.instances) ? d.instances : [];
+        S.sets = Array.isArray(d.sets) ? d.sets : [];
+        S.jobs = Array.isArray(d.jobs) ? d.jobs : [];
+        S.loading = false;
+        renderApp();
+        renderDrawer();
+        if (hasRunningJobs()) {
+          clearTimeout(S.jobTimer);
+          S.jobTimer = setTimeout(pollJobsNow, 1500);
+        }
+      }).catch(function (err) {
+        S.loading = false;
+        appEl.innerHTML = '<div class="wptk-empty"><strong>Không thể kết nối dịch vụ WordPress Toolkit:</strong><br>' + esc(err.message) + '</div>';
+      });
+    }
+
+    function findInstance(id) {
+      for (var i = 0; i < S.instances.length; i++) {
+        if (S.instances[i].id === id) return S.instances[i];
+      }
+      return null;
+    }
+
+    function upsertLocalInstance(inst) {
+      if (!inst || !inst.id) return;
+      for (var i = 0; i < S.instances.length; i++) {
+        if (S.instances[i].id === inst.id) {
+          S.instances[i] = inst;
+          return;
+        }
+      }
+      S.instances.unshift(inst);
+    }
+
+    function filteredInstances() {
+      var q = S.search.trim().toLowerCase();
+      if (!q) return S.instances;
+      return S.instances.filter(function (it) {
+        var hay = [it.domain, it.sub_path, it.site_title, it.admin_user, it.wp_version, it.php_version, it.doc_root].join(' ').toLowerCase();
+        return hay.indexOf(q) !== -1;
+      });
+    }
+
+    function selectedInstanceIds() {
+      var ids = [];
+      for (var i = 0; i < S.instances.length; i++) {
+        var id = S.instances[i].id;
+        if (S.selectedIds[id]) ids.push(id);
+      }
+      return ids;
+    }
+
+    function totalPluginCountBadge() {
+      if (Array.isArray(S.globalPlugins)) return S.globalPlugins.length;
+      var sum = 0;
+      for (var i = 0; i < S.instances.length; i++) sum += (S.instances[i].plugin_count || 0);
+      return sum;
+    }
+
+    function totalThemeCountBadge() {
+      if (Array.isArray(S.globalThemes)) return S.globalThemes.length;
+      var sum = 0;
+      for (var i = 0; i < S.instances.length; i++) sum += (S.instances[i].theme_count || 0);
+      return sum;
+    }
+
+    /* Render Helpers */
+    function shieldBadge(inst) {
+      var m = inst.core_shield_mode || 'auto_heal';
+      if (m === 'fortress_lock') {
+        return '<span class="wptk-pill wptk-pill-indigo">🔒 Core Locked</span>';
+      }
+      if (m === 'auto_heal') {
+        return '<span class="wptk-pill ' + (inst.core_integrity_clean !== false ? 'wptk-pill-green' : 'wptk-pill-red') + '">🛡 Auto-Heal</span>';
+      }
+      return '<span class="wptk-pill wptk-pill-slate">👁 Monitor</span>';
+    }
+
+    function securityPill(inst) {
+      var sc = inst.security_score || 0;
+      var tot = inst.security_total || 12;
+      var cls = sc >= 9 ? 'wptk-pill-green' : (sc >= 5 ? 'wptk-pill-amber' : 'wptk-pill-red');
+      return '<span class="wptk-pill ' + cls + '">' + sc + '/' + tot + '</span>';
+    }
+
+    function renderTopJobBadge() {
+      var btn = document.getElementById('dawptk-job-btn');
+      if (!btn) return;
+      var activeCount = 0;
+      for (var i = 0; i < S.jobs.length; i++) {
+        if (S.jobs[i].status === 'running' || S.jobs[i].status === 'queued') activeCount++;
+      }
+      btn.innerHTML = IC.zap + ' ' + esc(t('jobs')) + ' (' + (activeCount > 0 ? activeCount + ' ⏳' : S.jobs.length) + ')';
+    }
+
+    function renderApp() {
+      var activeSel = document.activeElement;
+      var wasSearching = activeSel && activeSel.id === 'dawptk-search-input';
+      var selStart = wasSearching ? activeSel.selectionStart : 0;
+
+      var html = '';
+      /* 1. Top Header */
+      html += '<div class="wptk-top">';
+      html += '  <div class="wptk-brand">';
+      html += '    <div class="wptk-brand-icon">' + IC.wp + '</div>';
+      html += '    <div><h2 class="wptk-title">WordPress Manager</h2><p class="wptk-subtitle">' + esc(t('subtitle')) + '</p></div>';
+      html += '  </div>';
+      html += '  <div class="wptk-top-actions">';
+      html += '    <button type="button" class="wptk-btn wptk-btn-sm" data-act="toggle-lang">' + (S.lang === 'vi' ? '🇻🇳 VI' : '🇬🇧 EN') + '</button>';
+      html += '    <button type="button" class="wptk-btn wptk-btn-sm" data-act="toggle-theme" title="Light / Dark">' + (rootEl.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙') + '</button>';
+      html += '    <button type="button" id="dawptk-job-btn" class="wptk-btn wptk-btn-sm" data-act="open-drawer">' + IC.zap + ' ' + esc(t('jobs')) + ' (' + S.jobs.length + ')</button>';
+      html += '    <button type="button" class="wptk-btn" data-act="refresh-all">' + IC.refresh + ' ' + esc(t('refresh')) + '</button>';
+      html += '  </div>';
+      html += '</div>';
+
+      /* 2. Global Navigation Tabs + Search */
+      html += '<div class="wptk-nav-row">';
+      html += '  <div class="wptk-gtabs">';
+      html += '    <button type="button" class="wptk-gtab ' + (S.globalTab === 'instances' ? 'active' : '') + '" data-act="switch-gtab" data-tab="instances">Instances <span class="wptk-tab-count">' + S.instances.length + '</span></button>';
+      html += '    <button type="button" class="wptk-gtab ' + (S.globalTab === 'plugins' ? 'active' : '') + '" data-act="switch-gtab" data-tab="plugins">Plugins <span class="wptk-tab-count">' + totalPluginCountBadge() + '</span></button>';
+      html += '    <button type="button" class="wptk-gtab ' + (S.globalTab === 'themes' ? 'active' : '') + '" data-act="switch-gtab" data-tab="themes">Themes <span class="wptk-tab-count">' + totalThemeCountBadge() + '</span></button>';
+      html += '    <button type="button" class="wptk-gtab ' + (S.globalTab === 'sets' ? 'active' : '') + '" data-act="switch-gtab" data-tab="sets">Sets <span class="wptk-tab-count">' + S.sets.length + '</span></button>';
+      html += '  </div>';
+      html += '  <div class="wptk-search-wrap">';
+      html += '    <span class="wptk-search-icon">' + IC.search + '</span>';
+      html += '    <input id="dawptk-search-input" type="search" class="wptk-search-input" placeholder="' + esc(t('searchPh')) + '" value="' + esc(S.search) + '" />';
+      html += '  </div>';
+      html += '</div>';
+
+      /* 3. Active Global Tab Content */
+      if (S.globalTab === 'instances') {
+        html += renderInstancesTab();
+      } else if (S.globalTab === 'plugins') {
+        html += renderGlobalExtensionsTab(false);
+      } else if (S.globalTab === 'themes') {
+        html += renderGlobalExtensionsTab(true);
+      } else if (S.globalTab === 'sets') {
+        html += renderSetsTab();
+      }
+
+      appEl.innerHTML = html;
+      renderTopJobBadge();
+
+      var sInput = document.getElementById('dawptk-search-input');
+      if (sInput) {
+        sInput.addEventListener('input', function (e) {
+          S.search = e.target.value || '';
+          renderApp();
+        });
+        if (wasSearching) {
+          sInput.focus();
+          try { sInput.setSelectionRange(selStart, selStart); } catch (_) {}
+        }
+      }
+    }
+
+    function renderInstancesTab() {
+      var list = filteredInstances();
+      var selIds = selectedInstanceIds();
+      var allChecked = list.length > 0 && list.every(function (it) { return !!S.selectedIds[it.id]; });
+
+      var h = '';
+      /* Bulk Action Toolbar + 3-Mode View Switcher */
+      h += '<div class="wptk-toolbar">';
+      h += '  <div class="wptk-toolbar-left">';
+      h += '    <label class="wptk-check-label"><input type="checkbox" class="wptk-checkbox" data-act="toggle-select-all" ' + (allChecked ? 'checked' : '') + ' /> ' + esc(t('selectAll')) + (selIds.length ? ' (' + selIds.length + ')' : '') + '</label>';
+      h += '    <button type="button" class="wptk-btn wptk-btn-primary" data-act="open-install">' + IC.plus + ' Install</button>';
+      h += '    <button type="button" class="wptk-btn" data-act="scan-sites">' + IC.search + ' Scan</button>';
+      h += '    <button type="button" class="wptk-btn" data-act="open-bulk-update">' + IC.refresh + ' Updates</button>';
+      h += '    <button type="button" class="wptk-btn" data-act="open-bulk-security">' + IC.shield + ' Security</button>';
+      h += '    <button type="button" class="wptk-btn" data-act="bulk-detach" ' + (selIds.length === 0 ? 'disabled' : '') + '>' + IC.unlink + ' Detach</button>';
+      h += '    <button type="button" class="wptk-btn wptk-btn-danger" data-act="open-bulk-remove" ' + (selIds.length === 0 ? 'disabled' : '') + '>' + IC.trash + ' Remove</button>';
+      h += '  </div>';
+      h += '  <div class="wptk-view-switch" role="group" aria-label="View mode">';
+      h += '    <button type="button" class="wptk-view-btn ' + (S.viewMode === 'cards' ? 'active' : '') + '" data-act="set-view" data-view="cards" title="Expanded Cards View">' + IC.vCards + '</button>';
+      h += '    <button type="button" class="wptk-view-btn ' + (S.viewMode === 'grid' ? 'active' : '') + '" data-act="set-view" data-view="grid" title="Grid Tiles View">' + IC.vGrid + '</button>';
+      h += '    <button type="button" class="wptk-view-btn ' + (S.viewMode === 'list' ? 'active' : '') + '" data-act="set-view" data-view="list" title="Compact List View">' + IC.vList + '</button>';
+      h += '  </div>';
+      h += '</div>';
+
+      if (list.length === 0) {
+        h += '<div class="wptk-empty">' + esc(t('emptySites')) + '</div>';
+        return h;
+      }
+
+      if (S.viewMode === 'grid') {
+        return h + renderInstancesGrid(list);
+      }
+      if (S.viewMode === 'list') {
+        return h + renderInstancesCompactList(list);
+      }
+
+      h += '<div class="wptk-inst-list">';
+      for (var i = 0; i < list.length; i++) {
+        h += renderExpandedInstanceCard(list[i]);
+      }
+      h += '</div>';
+      return h;
+    }
+
+    function renderExpandedInstanceCard(inst) {
+      var id = inst.id;
+      var collapsed = !!S.collapsedIds[id];
+      var sub = S.subTabs[id] || 'info';
+      var fullLabel = inst.domain + (inst.sub_path || '');
+      var siteUrl = inst.site_url || ((inst.ssl_active ? 'https://' : 'http://') + fullLabel);
+      var phpLabel = inst.php_version ? ('PHP ' + inst.php_version) : 'PHP Default';
+      var secTot = inst.security_total || 12;
+
+      var h = '<div class="wptk-inst-card ' + (collapsed ? 'collapsed' : '') + '">';
+      /* Card Header Strip */
+      h += '<div class="wptk-inst-hdr">';
+      h += '  <div class="wptk-inst-hdr-left">';
+      h += '    <input type="checkbox" class="wptk-checkbox" data-act="toggle-select-one" data-id="' + esc(id) + '" ' + (S.selectedIds[id] ? 'checked' : '') + ' />';
+      h += '    <span style="color:var(--text);display:inline-flex;">' + IC.wp + '</span>';
+      h += '    <span class="wptk-inst-domain">' + esc(fullLabel) + ' <a href="' + esc(siteUrl) + '" target="_blank" rel="noopener noreferrer" title="Mở trang web">' + IC.ext + '</a></span>';
+      h += '    <span class="wptk-pill wptk-pill-green">WP ' + esc(inst.wp_version || '6.x') + '</span>';
+      h += '    <span class="wptk-pill wptk-pill-slate">' + esc(phpLabel) + '</span>';
+      if (inst.environment_tag === 'staging') {
+        h += '  <span class="wptk-pill wptk-pill-amber">STAGING</span>';
+      }
+      h += '    ' + shieldBadge(inst);
+      if (inst.vuln_count > 0) {
+        h += '  <span class="wptk-pill wptk-pill-red">⚠ ' + inst.vuln_count + ' CVE</span>';
+      }
+      h += '  </div>';
+      h += '  <div class="wptk-inst-hdr-right">';
+      h += '    <button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="sso-login" data-id="' + esc(id) + '">' + IC.login + ' Log in wp-admin</button>';
+      h += '    <button type="button" class="wptk-btn wptk-btn-icon" data-act="refresh-instance" data-id="' + esc(id) + '" title="Làm mới site">' + IC.refresh + '</button>';
+      h += '    <button type="button" class="wptk-btn wptk-btn-icon wptk-btn-danger" data-act="open-uninstall" data-id="' + esc(id) + '" title="Gỡ cài đặt">' + IC.trash + '</button>';
+      h += '    <button type="button" class="wptk-btn wptk-btn-icon" data-act="toggle-collapse" data-id="' + esc(id) + '" title="Thu gọn / Mở rộng">' + (collapsed ? IC.chevDn : IC.chevUp) + '</button>';
+      h += '  </div>';
+      h += '</div>';
+
+      if (collapsed) {
+        h += '</div>';
+        return h;
+      }
+
+      /* 2-Column Body */
+      h += '<div class="wptk-inst-body">';
+      /* Left Column: Mini Browser Preview + Telemetry */
+      h += '  <div class="wptk-col-left">';
+      h += '    <div>';
+      h += '      <div class="wptk-browser">';
+      h += '        <div class="wptk-browser-bar"><span class="wptk-dot" style="background:#f87171"></span><span class="wptk-dot" style="background:#fbbf24"></span><span class="wptk-dot" style="background:#4ade80"></span><span class="wptk-browser-url">' + esc(siteUrl) + '</span></div>';
+      h += '        <div class="wptk-browser-canvas">';
+      h += '          <div class="wptk-browser-emblem">' + IC.wp + '</div>';
+      h += '          <div class="wptk-browser-title">' + esc(inst.site_title || inst.domain) + '</div>';
+      h += '          <div class="wptk-browser-theme">Theme: ' + esc(inst.active_theme || 'Default') + '</div>';
+      if (inst.maintenance_mode) {
+        h += '        <span class="wptk-pill wptk-pill-amber">503 Maintenance</span>';
+      } else if (inst.password_protected) {
+        h += '        <span class="wptk-pill wptk-pill-indigo">🔒 HTTP Auth</span>';
+      }
+      h += '        </div>';
+      h += '      </div>';
+
+      h += '      <div class="wptk-kv-rows">';
+      h += '        <div class="wptk-kv-row"><span>SSL/TLS</span><span class="wptk-kv-val">' + (inst.ssl_active ? '<span class="wptk-pill wptk-pill-green">enabled</span>' : '<span class="wptk-pill wptk-pill-amber">http</span>') + '</span></div>';
+      h += '        <div class="wptk-kv-row"><span>Security status</span><span class="wptk-kv-val">' + securityPill(inst) + ' <button type="button" class="wptk-link-btn" data-act="switch-subtab" data-id="' + esc(id) + '" data-sub="security">View</button></span></div>';
+      h += '        <div class="wptk-kv-row"><span>Updates</span><span class="wptk-kv-val">' + (inst.update_count > 0 ? '<span class="wptk-pill wptk-pill-amber">' + inst.update_count + ' available</span>' : '<span class="wptk-pill wptk-pill-green">0 available</span>') + ' <button type="button" class="wptk-link-btn" data-act="switch-subtab" data-id="' + esc(id) + '" data-sub="plugins">View</button></span></div>';
+      h += '        <div class="wptk-kv-row"><span>Memory Limit</span><span class="wptk-kv-val">' + esc(inst.memory_limit || '128M') + '</span></div>';
+      h += '      </div>';
+      h += '    </div>';
+      h += '    <div class="wptk-path-foot">Path: ' + esc(inst.doc_root || '') + '</div>';
+      h += '  </div>';
+
+      /* Right Column: 5 Sub-Tabs */
+      h += '  <div class="wptk-col-right">';
+      h += '    <div class="wptk-subtabs">';
+      h += '      <button type="button" class="wptk-subtab ' + (sub === 'info' ? 'active' : '') + '" data-act="switch-subtab" data-id="' + esc(id) + '" data-sub="info">Information &amp; Tools</button>';
+      h += '      <button type="button" class="wptk-subtab ' + (sub === 'plugins' ? 'active' : '') + '" data-act="switch-subtab" data-id="' + esc(id) + '" data-sub="plugins">Plugins (' + (inst.plugin_count || 0) + ')</button>';
+      h += '      <button type="button" class="wptk-subtab ' + (sub === 'themes' ? 'active' : '') + '" data-act="switch-subtab" data-id="' + esc(id) + '" data-sub="themes">Themes (' + (inst.theme_count || 0) + ')</button>';
+      h += '      <button type="button" class="wptk-subtab ' + (sub === 'security' ? 'active' : '') + '" data-act="switch-subtab" data-id="' + esc(id) + '" data-sub="security">Security (' + (inst.security_score || 0) + '/' + secTot + ')</button>';
+      h += '      <button type="button" class="wptk-subtab ' + (sub === 'dbconfig' ? 'active' : '') + '" data-act="switch-subtab" data-id="' + esc(id) + '" data-sub="dbconfig">Database &amp; Config</button>';
+      h += '    </div>';
+
+      if (sub === 'info') h += renderSubInfoTools(inst);
+      else if (sub === 'plugins') h += renderSubExtensions(inst, false);
+      else if (sub === 'themes') h += renderSubExtensions(inst, true);
+      else if (sub === 'security') h += renderSubSecurity(inst);
+      else if (sub === 'dbconfig') h += renderSubDBConfig(inst);
+
+      h += '  </div>';
+      h += '</div>';
+      h += '</div>';
+      return h;
+    }
+
+    /* Sub-Tab 1: Information & Tools (Exact Reference Match) */
+    function renderSubInfoTools(inst) {
+      var id = inst.id;
+      var ts = S.siteTools[id] || {};
+      var manageFilesUrl = ts.manage_files_url || '/evo/user/filemanager';
+      var cronMin = inst.cron_interval_min || 15;
+      var shieldOn = (inst.core_shield_mode || 'auto_heal') !== 'monitor';
+
+      var h = '<h4 class="wptk-sec-heading">General Info</h4>';
+      h += '<div class="wptk-gen-grid">';
+      h += '  <div class="wptk-gen-label">Site title</div>';
+      h += '  <div class="wptk-gen-val"><strong>' + esc(inst.site_title || inst.domain) + '</strong> <button type="button" class="wptk-link-btn" data-act="open-title" data-id="' + esc(id) + '">[Change]</button></div>';
+      h += '  <div class="wptk-gen-label">Current version</div>';
+      h += '  <div class="wptk-gen-val"><strong>' + esc(inst.wp_version || '6.x') + '</strong> <span style="color:var(--muted);font-size:12px;">(PHP ' + esc(inst.php_version || 'default') + ')</span> <button type="button" class="wptk-link-btn" data-act="verify-core-now" data-id="' + esc(id) + '">[Check / Re-sync Core]</button></div>';
+      h += '  <div class="wptk-gen-label">Administrator</div>';
+      h += '  <div class="wptk-gen-val"><strong>' + esc(inst.admin_user || 'admin') + '</strong> <button type="button" class="wptk-link-btn" data-act="sso-login" data-id="' + esc(id) + '">Log in</button> <button type="button" class="wptk-link-btn" data-act="open-admin-setup" data-id="' + esc(id) + '">[Setup]</button></div>';
+      h += '</div>';
+
+      h += '<h4 class="wptk-sec-heading">Tools</h4>';
+      h += '<div class="wptk-tools-strip">';
+      h += '  <button type="button" class="wptk-btn wptk-btn-sm" data-act="open-sync" data-id="' + esc(id) + '" ' + (S.policy.allow_staging_sync === false ? 'disabled' : '') + '>' + IC.refresh + ' Sync</button>';
+      h += '  <button type="button" class="wptk-btn wptk-btn-sm" data-act="open-clone" data-id="' + esc(id) + '" ' + (S.policy.allow_clone === false ? 'disabled' : '') + '>' + IC.clone + ' Clone</button>';
+      h += '  <a class="wptk-btn wptk-btn-sm" href="' + esc(manageFilesUrl) + '" target="_blank" rel="noopener noreferrer" data-act="open-files" data-id="' + esc(id) + '" style="text-decoration:none;">' + IC.folder + ' Manage Files</a>';
+      h += '  <button type="button" class="wptk-btn wptk-btn-sm" data-act="open-snapshots" data-id="' + esc(id) + '">' + IC.archive + ' Back Up / Restore (' + (inst.snapshot_count || 0) + ')</button>';
+      h += '  <button type="button" class="wptk-btn wptk-btn-sm" data-act="open-search-replace" data-id="' + esc(id) + '">' + IC.search + ' Search &amp; Replace URL</button>';
+      h += '  <button type="button" class="wptk-btn wptk-btn-sm" data-act="clear-cache" data-id="' + esc(id) + '">' + IC.zap + ' Clear Cache</button>';
+      h += '</div>';
+
+      /* 7 Toggle Cards */
+      h += '<div class="wptk-toggles-grid">';
+
+      h += '<div class="wptk-toggle-card"><div class="wptk-toggle-name">Search engine indexing</div><div class="wptk-toggle-foot"><label class="wptk-switch"><input type="checkbox" data-act="toggle-indexing" data-id="' + esc(id) + '" ' + (inst.search_indexing ? 'checked' : '') + ' /><span class="wptk-slider"></span></label><span class="wptk-toggle-note">' + esc(inst.search_indexing ? t('allowGoogle') : t('blockGoogle')) + '</span></div></div>';
+
+      h += '<div class="wptk-toggle-card"><div class="wptk-toggle-name">Caching (LSCache / WP)</div><div class="wptk-toggle-foot"><label class="wptk-switch"><input type="checkbox" data-act="toggle-caching" data-id="' + esc(id) + '" ' + (inst.cache_enabled ? 'checked' : '') + ' /><span class="wptk-slider"></span></label><button type="button" class="wptk-link-btn" data-act="clear-cache" data-id="' + esc(id) + '">' + esc(t('clearCache')) + '</button></div></div>';
+
+      h += '<div class="wptk-toggle-card"><div class="wptk-toggle-name">Maintenance mode</div><div class="wptk-toggle-foot"><label class="wptk-switch"><input type="checkbox" data-act="toggle-maintenance" data-id="' + esc(id) + '" ' + (inst.maintenance_mode ? 'checked' : '') + ' /><span class="wptk-slider"></span></label><button type="button" class="wptk-link-btn" data-act="open-maint-setup" data-id="' + esc(id) + '">' + esc(t('setup')) + '</button></div></div>';
+
+      h += '<div class="wptk-toggle-card"><div class="wptk-toggle-name">Debugging (WP_DEBUG)</div><div class="wptk-toggle-foot"><label class="wptk-switch"><input type="checkbox" data-act="toggle-debug" data-id="' + esc(id) + '" ' + (inst.debug_mode ? 'checked' : '') + ' /><span class="wptk-slider"></span></label><button type="button" class="wptk-link-btn" data-act="open-debug-setup" data-id="' + esc(id) + '">' + esc(t('setupLog')) + '</button></div></div>';
+
+      h += '<div class="wptk-toggle-card"><div class="wptk-toggle-name">Password protection</div><div class="wptk-toggle-foot"><label class="wptk-switch"><input type="checkbox" data-act="toggle-pwprotect" data-id="' + esc(id) + '" ' + (inst.password_protected ? 'checked' : '') + ' /><span class="wptk-slider"></span></label><button type="button" class="wptk-link-btn" data-act="open-pwprotect-setup" data-id="' + esc(id) + '">' + esc(t('setup')) + '</button></div></div>';
+
+      h += '<div class="wptk-toggle-card"><div class="wptk-toggle-name">Disable wp-cron.php</div><div class="wptk-toggle-foot"><label class="wptk-switch"><input type="checkbox" data-act="toggle-wpcron" data-id="' + esc(id) + '" ' + (inst.disable_wp_cron ? 'checked' : '') + ' /><span class="wptk-slider"></span></label><button type="button" class="wptk-link-btn" data-act="open-cron-setup" data-id="' + esc(id) + '">' + (inst.disable_wp_cron ? esc(t('sysCron')) + ' (' + cronMin + 'm)' : esc(t('wpCronDefault'))) + '</button></div></div>';
+
+      h += '<div class="wptk-toggle-card"><div class="wptk-toggle-name">Core Self-Protection</div><div class="wptk-toggle-foot"><label class="wptk-switch"><input type="checkbox" data-act="toggle-core-shield" data-id="' + esc(id) + '" ' + (shieldOn ? 'checked' : '') + ' /><span class="wptk-slider"></span></label><button type="button" class="wptk-link-btn" data-act="switch-subtab" data-id="' + esc(id) + '" data-sub="security">' + esc(inst.core_shield_mode === 'fortress_lock' ? 'Fortress' : (shieldOn ? 'Auto-Heal' : 'Monitor')) + '</button></div></div>';
+
+      h += '</div>';
+      return h;
+    }
+
+    /* Sub-Tab 2 & 3: Single-Site Plugins & Themes */
+    function renderSubExtensions(inst, isTheme) {
+      var id = inst.id;
+      var items = isTheme ? S.siteThemes[id] : S.sitePlugins[id];
+      var kindLabel = isTheme ? 'Theme' : 'Plugin';
+
+      var h = '<div class="wptk-tools-strip" style="justify-content:space-between;">';
+      h += '  <div style="display:flex;gap:8px;flex-wrap:wrap;">';
+      h += '    <button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="smart-update-all-ext" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '">🛡 Smart Safe Update ' + kindLabel + 's</button>';
+      h += '    <button type="button" class="wptk-btn wptk-btn-sm" data-act="open-wporg-install" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '">' + IC.plus + ' Cài từ WordPress.org</button>';
+      h += '    <button type="button" class="wptk-btn wptk-btn-sm" data-act="open-zip-install" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '">⬆ Tải lên gói .zip</button>';
+      if (!isTheme) {
+        h += '  <button type="button" class="wptk-btn wptk-btn-sm" data-act="open-apply-set" data-id="' + esc(id) + '">📦 Áp dụng Bộ Set</button>';
+      }
+      h += '  </div>';
+      h += '  <button type="button" class="wptk-btn wptk-btn-sm" data-act="reload-site-ext" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '">' + IC.refresh + '</button>';
+      h += '</div>';
+
+      if (!items) {
+        return h + '<div class="wptk-empty">Đang tải danh sách ' + kindLabel + 's (WSOD-Safe --skip-plugins)...</div>';
+      }
+      if (items.length === 0) {
+        return h + '<div class="wptk-empty">Chưa có ' + kindLabel + ' nào được cài đặt trên website này.</div>';
+      }
+
+      h += '<div class="wptk-table-wrap"><table class="wptk-table"><thead><tr>';
+      h += '<th>' + kindLabel + '</th><th>Trạng thái</th><th>Phiên bản</th><th>Auto-Update</th><th>Bảo mật CVE</th><th style="text-align:right">Thao tác</th>';
+      h += '</tr></thead><tbody>';
+      for (var i = 0; i < items.length; i++) {
+        var it = items[i];
+        var isActive = it.status === 'active' || it.status === 'parent';
+        var vulns = Array.isArray(it.vulns) ? it.vulns : [];
+        h += '<tr>';
+        h += '<td><strong>' + esc(it.title || it.slug) + '</strong><div style="font-size:11px;color:var(--muted);">' + esc(it.slug) + '</div></td>';
+        h += '<td>';
+        if (isTheme) {
+          h += isActive ? '<span class="wptk-pill wptk-pill-green">Đang dùng (' + esc(it.status) + ')</span>' : '<button type="button" class="wptk-btn wptk-btn-sm" data-act="ext-op" data-id="' + esc(id) + '" data-kind="theme" data-op="activate" data-slug="' + esc(it.slug) + '">Kích hoạt</button>';
+        } else if (it.status === 'must-use' || it.status === 'dropin') {
+          h += '<span class="wptk-pill wptk-pill-slate">' + esc(it.status) + '</span>';
+        } else {
+          h += '<label class="wptk-switch"><input type="checkbox" data-act="ext-op" data-id="' + esc(id) + '" data-kind="plugin" data-op="' + (isActive ? 'deactivate' : 'activate') + '" data-slug="' + esc(it.slug) + '" ' + (isActive ? 'checked' : '') + ' /><span class="wptk-slider"></span></label>';
+        }
+        h += '</td>';
+        h += '<td><strong>' + esc(it.version) + '</strong>';
+        if (it.update_available) {
+          h += ' <button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" style="margin-left:6px;" data-act="smart-update-single" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '" data-slug="' + esc(it.slug) + '">→ ' + esc(it.update_version || 'Update') + '</button>';
+        }
+        h += '</td>';
+        h += '<td><label class="wptk-switch"><input type="checkbox" data-act="ext-op" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '" data-op="' + (it.auto_update ? 'autoupdate_off' : 'autoupdate_on') + '" data-slug="' + esc(it.slug) + '" ' + (it.auto_update ? 'checked' : '') + ' /><span class="wptk-slider"></span></label></td>';
+        h += '<td>' + (vulns.length > 0 ? '<button type="button" class="wptk-pill wptk-pill-red" style="cursor:pointer" data-act="open-cve-modal" data-id="' + esc(id) + '" data-slug="' + esc(it.slug) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '">⚠ ' + vulns.length + ' CVE</button>' : '<span class="wptk-pill wptk-pill-green">An toàn</span>') + '</td>';
+        h += '<td style="text-align:right">';
+        if (!isActive && it.status !== 'must-use' && it.status !== 'dropin') {
+          h += '<button type="button" class="wptk-btn wptk-btn-sm wptk-btn-danger" data-act="ext-op" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '" data-op="delete" data-slug="' + esc(it.slug) + '">' + IC.trash + '</button>';
+        }
+        h += '</td></tr>';
+      }
+      h += '</tbody></table></div>';
+      return h;
+    }
+
+    /* Sub-Tab 4: Security (Core Integrity Shield + Quarantine Vault + 12 Hardening Rules) */
+    function renderSubSecurity(inst) {
+      var id = inst.id;
+      var sec = S.siteSecurity[id];
+      if (!sec) {
+        return '<div class="wptk-empty">Đang kiểm tra Core Integrity Shield &amp; 12 tiêu chí bảo mật Web Server...</div>';
+      }
+      var mode = sec.core_shield_mode || inst.core_shield_mode || 'auto_heal';
+      var qItems = S.siteQuarantine[id] || [];
+      var wl = Array.isArray(sec.whitelist) ? sec.whitelist : [];
+      var rules = Array.isArray(sec.rules) ? sec.rules : [];
+
+      var h = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">';
+      h += '  <div><h4 class="wptk-sec-heading" style="margin:0;">Core Integrity Shield (Tự Bảo Vệ &amp; Khôi Phục Core)</h4><div style="font-size:12px;color:var(--muted);">Web Server: <strong>' + esc(sec.web_server || 'Auto') + '</strong> • Trạng thái Core: ' + (sec.core_integrity_clean !== false ? '<strong style="color:var(--green-text)">Nguyên vẹn SHA-256</strong>' : '<strong style="color:var(--red-text)">Phát hiện thay đổi</strong>') + '</div></div>';
+      h += '  <button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="verify-core-now" data-id="' + esc(id) + '">🔍 Kiểm tra &amp; Khôi phục Core ngay</button>';
+      h += '</div>';
+
+      h += '<div class="wptk-mode-grid">';
+      h += '  <div class="wptk-mode-card ' + (mode === 'monitor' ? 'active' : '') + '" data-act="set-shield-mode" data-id="' + esc(id) + '" data-mode="monitor"><strong>1. Monitor Only</strong><div style="font-size:11.5px;color:var(--muted);margin-top:4px;">Chỉ cảnh báo khi tệp Core thay đổi mà không tự động ghi đè.</div></div>';
+      h += '  <div class="wptk-mode-card ' + (mode === 'auto_heal' ? 'active' : '') + '" data-act="set-shield-mode" data-id="' + esc(id) + '" data-mode="auto_heal"><strong>2. Auto-Heal &amp; Quarantine</strong> <span class="wptk-pill wptk-pill-green">Khuyến nghị</span><div style="font-size:11.5px;color:var(--muted);margin-top:4px;">Tự khôi phục Core sạch &lt;50ms qua inotify &amp; cách ly webshell lạ.</div></div>';
+      if (S.policy.allow_core_fortress_lock !== false) {
+        h += '<div class="wptk-mode-card ' + (mode === 'fortress_lock' ? 'active' : '') + '" data-act="set-shield-mode" data-id="' + esc(id) + '" data-mode="fortress_lock"><strong>3. Fortress Core Lock</strong><div style="font-size:11.5px;color:var(--muted);margin-top:4px;">Khóa cứng quyền sở hữu <code>root:&lt;user&gt;</code> mức nhân Linux, vẫn ghi được wp-content.</div></div>';
+      }
+      h += '</div>';
+
+      /* Quarantine Vault & Whitelist */
+      h += '<div style="border:1px solid var(--border);border-radius:11px;padding:13px 15px;margin-bottom:18px;background:var(--surface);">';
+      h += '  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;"><strong>Kho Cách Ly Quarantine Vault (' + qItems.length + ') &amp; Core Whitelist (' + wl.length + ')</strong><button type="button" class="wptk-btn wptk-btn-sm" data-act="open-whitelist" data-id="' + esc(id) + '">Quản lý Whitelist ngoại lệ</button></div>';
+      if (qItems.length === 0) {
+        h += '<div style="font-size:12px;color:var(--muted);">Không có tệp đáng ngờ hoặc tệp bị sửa đổi nào trong kho cách ly.</div>';
+      } else {
+        h += '<div class="wptk-table-wrap"><table class="wptk-table"><thead><tr><th>Đường dẫn tệp</th><th>Lý do</th><th>Thời điểm</th><th style="text-align:right">Thao tác</th></tr></thead><tbody>';
+        for (var q = 0; q < qItems.length; q++) {
+          var qi = qItems[q];
+          h += '<tr><td><code>' + esc(qi.rel_path) + '</code></td><td><span class="wptk-pill wptk-pill-red">' + esc(qi.reason) + '</span></td><td>' + esc(fmtDate(qi.created_at)) + '</td>';
+          h += '<td style="text-align:right;white-space:nowrap;"><button type="button" class="wptk-btn wptk-btn-sm" data-act="view-q-diff" data-id="' + esc(id) + '" data-qid="' + esc(qi.id) + '">Xem Diff</button> <button type="button" class="wptk-btn wptk-btn-sm" data-act="restore-q" data-id="' + esc(id) + '" data-qid="' + esc(qi.id) + '">Khôi phục + Whitelist</button> <button type="button" class="wptk-btn wptk-btn-sm wptk-btn-danger" data-act="delete-q" data-id="' + esc(id) + '" data-qid="' + esc(qi.id) + '">Xóa</button></td></tr>';
+        }
+        h += '</tbody></table></div>';
+      }
+      h += '</div>';
+
+      /* 12 Security Hardening Rules */
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">';
+      h += '  <h4 class="wptk-sec-heading" style="margin:0;">12 Quy tắc Gia cố Bảo mật Đa Web Server (' + (sec.security_score || 0) + '/' + (sec.security_total || 12) + ')</h4>';
+      h += '  <div style="display:flex;gap:6px;flex-wrap:wrap;">';
+      h += '    <button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="apply-preset" data-id="' + esc(id) + '" data-preset="critical">Áp dụng Critical (6)</button>';
+      h += '    <button type="button" class="wptk-btn wptk-btn-sm" data-act="apply-preset" data-id="' + esc(id) + '" data-preset="recommended">Áp dụng Khuyến nghị</button>';
+      h += '  </div>';
+      h += '</div>';
+
+      h += '<div class="wptk-table-wrap"><table class="wptk-table"><thead><tr><th>Quy tắc bảo mật</th><th>Mức độ</th><th>Trạng thái</th><th style="text-align:right">Hành động</th></tr></thead><tbody>';
+      for (var r = 0; r < rules.length; r++) {
+        var rl = rules[r];
+        h += '<tr>';
+        h += '<td><strong>' + esc(rl.title) + '</strong><div style="font-size:11.5px;color:var(--muted);">' + esc(rl.description) + (rl.detail ? ' (' + esc(rl.detail) + ')' : '') + '</div></td>';
+        h += '<td><span class="wptk-pill ' + (rl.severity === 'critical' ? 'wptk-pill-red' : 'wptk-pill-indigo') + '">' + esc(rl.severity) + '</span></td>';
+        h += '<td>' + (rl.applied ? '<span class="wptk-pill wptk-pill-green">Đã bảo vệ</span>' : '<span class="wptk-pill wptk-pill-amber">Chưa bật</span>') + '</td>';
+        h += '<td style="text-align:right;white-space:nowrap;">';
+        if (!rl.applied) {
+          h += '<button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="apply-rule" data-id="' + esc(id) + '" data-rule="' + esc(rl.id) + '">Bật</button>';
+        } else if (rl.reversible) {
+          h += '<button type="button" class="wptk-btn wptk-btn-sm" data-act="revert-rule" data-id="' + esc(id) + '" data-rule="' + esc(rl.id) + '">Hoàn tác</button>';
+        } else {
+          h += '<span style="font-size:11.5px;color:var(--muted);">Một chiều</span>';
+        }
+        h += '</td></tr>';
+      }
+      h += '</tbody></table></div>';
+      return h;
+    }
+
+    /* Sub-Tab 5: Database & Safe wp-config.php Constants */
+    function renderSubDBConfig(inst) {
+      var id = inst.id;
+      var ts = S.siteTools[id];
+      if (!ts || !ts.safe_wp_config) {
+        return '<div class="wptk-empty">Đang đọc cấu hình Database &amp; wp-config.php an toàn...</div>';
+      }
+      var cfg = ts.safe_wp_config;
+      var pmaUrl = ts.phpmyadmin_url || '/phpMyAdmin';
+
+      var h = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">';
+      /* MariaDB Info & Maintenance */
+      h += '<div style="border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--surface);">';
+      h += '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><strong>MariaDB / MySQL Database</strong><a href="' + esc(pmaUrl) + '" target="_blank" rel="noopener noreferrer" class="wptk-btn wptk-btn-primary wptk-btn-sm" style="text-decoration:none;">phpMyAdmin ' + IC.ext + '</a></div>';
+      h += '  <div class="wptk-kv-rows" style="margin-top:0;">';
+      h += '    <div class="wptk-kv-row"><span>DB_NAME</span><code>' + esc(cfg.db_name || inst.db_name) + '</code></div>';
+      h += '    <div class="wptk-kv-row"><span>DB_USER</span><code>' + esc(cfg.db_user || inst.db_user) + '</code></div>';
+      h += '    <div class="wptk-kv-row"><span>DB_HOST</span><code>' + esc(cfg.db_host || 'localhost') + '</code></div>';
+      h += '    <div class="wptk-kv-row"><span>$table_prefix</span><code>' + esc(cfg.table_prefix || inst.table_prefix || 'wp_') + '</code></div>';
+      h += '    <div class="wptk-kv-row"><span>WP_CACHE_KEY_SALT</span><code style="font-size:11px;">' + esc(cfg.cache_key_salt || '—') + '</code></div>';
+      h += '  </div>';
+      h += '  <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">';
+      h += '    <button type="button" class="wptk-btn wptk-btn-sm" data-act="db-maint" data-id="' + esc(id) + '" data-op="optimize">⚡ Optimize Tables</button>';
+      h += '    <button type="button" class="wptk-btn wptk-btn-sm" data-act="db-maint" data-id="' + esc(id) + '" data-op="repair">🔧 Repair Tables</button>';
+      h += '    <button type="button" class="wptk-btn wptk-btn-sm" data-act="open-debug-setup" data-id="' + esc(id) + '">📜 Xem debug.log</button>';
+      h += '  </div>';
+      h += '</div>';
+
+      /* Safe wp-config.php Constants Editor */
+      h += '<form style="border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--bg);" data-form="save-wpconfig" data-id="' + esc(id) + '">';
+      h += '  <strong style="display:block;margin-bottom:12px;">Hằng số Vận hành An toàn (wp-config.php)</strong>';
+      h += '  <div class="wptk-form-grid">';
+      h += '    <div class="wptk-field"><label>WP_MEMORY_LIMIT</label><select name="wp_memory_limit" class="wptk-select">';
+      ['64M', '128M', '256M', '512M', '1024M'].forEach(function (m) {
+        var cur = cfg.wp_memory_limit || inst.memory_limit || '128M';
+        h += '<option value="' + m + '" ' + (cur === m ? 'selected' : '') + '>' + m + '</option>';
+      });
+      h += '    </select></div>';
+      h += '    <div class="wptk-field"><label>WP_MAX_MEMORY_LIMIT</label><select name="wp_max_memory_limit" class="wptk-select">';
+      ['128M', '256M', '512M', '1024M', '2048M'].forEach(function (m) {
+        var curMax = cfg.wp_max_memory_limit || '256M';
+        h += '<option value="' + m + '" ' + (curMax === m ? 'selected' : '') + '>' + m + '</option>';
+      });
+      h += '    </select></div>';
+      h += '    <div class="wptk-field"><label>WP_POST_REVISIONS</label><input type="number" name="wp_post_revisions" class="wptk-input" min="0" max="100" value="' + esc(cfg.wp_post_revisions || 10) + '" /></div>';
+      h += '    <div class="wptk-field"><label>AUTOSAVE_INTERVAL (giây)</label><input type="number" name="autosave_interval" class="wptk-input" min="15" max="3600" value="' + esc(cfg.autosave_interval || 60) + '" /></div>';
+      h += '    <div class="wptk-field"><label>EMPTY_TRASH_DAYS</label><input type="number" name="empty_trash_days" class="wptk-input" min="0" max="365" value="' + esc(cfg.empty_trash_days !== undefined ? cfg.empty_trash_days : 30) + '" /></div>';
+      h += '  </div>';
+      h += '  <div style="margin-top:14px;display:flex;justify-content:flex-end;"><button type="submit" class="wptk-btn wptk-btn-primary wptk-btn-sm">Lưu cấu hình wp-config.php</button></div>';
+      h += '</form>';
+      h += '</div>';
+      return h;
+    }
+
+    /* Mode 2: Grid Tiles View */
+    function renderInstancesGrid(list) {
+      var h = '<div class="wptk-tiles-grid">';
+      for (var i = 0; i < list.length; i++) {
+        var inst = list[i];
+        var fullLabel = inst.domain + (inst.sub_path || '');
+        h += '<div class="wptk-tile">';
+        h += '  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">';
+        h += '    <label style="display:flex;align-items:center;gap:8px;font-weight:700;"><input type="checkbox" class="wptk-checkbox" data-act="toggle-select-one" data-id="' + esc(inst.id) + '" ' + (S.selectedIds[inst.id] ? 'checked' : '') + ' /> ' + esc(fullLabel) + '</label>';
+        h += '    ' + shieldBadge(inst);
+        h += '  </div>';
+        h += '  <div style="font-size:12.5px;color:var(--muted);">' + esc(inst.site_title || inst.domain) + ' • Theme: ' + esc(inst.active_theme || 'Default') + '</div>';
+        h += '  <div style="display:flex;gap:6px;flex-wrap:wrap;"><span class="wptk-pill wptk-pill-green">WP ' + esc(inst.wp_version) + '</span><span class="wptk-pill wptk-pill-slate">PHP ' + esc(inst.php_version || 'default') + '</span>' + securityPill(inst) + (inst.update_count > 0 ? '<span class="wptk-pill wptk-pill-amber">' + inst.update_count + ' updates</span>' : '') + '</div>';
+        h += '  <div style="display:flex;justify-content:space-between;gap:8px;padding-top:8px;border-top:1px solid var(--border);">';
+        h += '    <button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="sso-login" data-id="' + esc(inst.id) + '">' + IC.login + ' wp-admin</button>';
+        h += '    <button type="button" class="wptk-btn wptk-btn-sm" data-act="focus-card" data-id="' + esc(inst.id) + '">Chi tiết →</button>';
+        h += '  </div>';
+        h += '</div>';
+      }
+      h += '</div>';
+      return h;
+    }
+
+    /* Mode 3: High-Density Compact List View (20-100+ Sites) */
+    function renderInstancesCompactList(list) {
+      var h = '<div class="wptk-table-wrap"><table class="wptk-table"><thead><tr>';
+      h += '<th style="width:32px"></th><th>Website / Đường dẫn</th><th>WP / PHP</th><th>Core Shield</th><th>Bảo mật</th><th>Cập nhật</th><th style="text-align:right">Thao tác nhanh</th>';
+      h += '</tr></thead><tbody>';
+      for (var i = 0; i < list.length; i++) {
+        var inst = list[i];
+        var fullLabel = inst.domain + (inst.sub_path || '');
+        h += '<tr>';
+        h += '<td><input type="checkbox" class="wptk-checkbox" data-act="toggle-select-one" data-id="' + esc(inst.id) + '" ' + (S.selectedIds[inst.id] ? 'checked' : '') + ' /></td>';
+        h += '<td><strong>' + esc(fullLabel) + '</strong><div style="font-size:11px;color:var(--muted);">' + esc(inst.site_title || '') + ' • ' + esc(inst.doc_root) + '</div></td>';
+        h += '<td><span class="wptk-pill wptk-pill-green">WP ' + esc(inst.wp_version) + '</span> <span class="wptk-pill wptk-pill-slate">PHP ' + esc(inst.php_version || 'def') + '</span></td>';
+        h += '<td>' + shieldBadge(inst) + '</td>';
+        h += '<td>' + securityPill(inst) + '</td>';
+        h += '<td>' + (inst.update_count > 0 ? '<span class="wptk-pill wptk-pill-amber">' + inst.update_count + '</span>' : '0') + (inst.vuln_count > 0 ? ' <span class="wptk-pill wptk-pill-red">' + inst.vuln_count + ' CVE</span>' : '') + '</td>';
+        h += '<td style="text-align:right;white-space:nowrap;"><button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="sso-login" data-id="' + esc(inst.id) + '">wp-admin</button> <button type="button" class="wptk-btn wptk-btn-sm" data-act="focus-card" data-id="' + esc(inst.id) + '">Mở thẻ</button></td>';
+        h += '</tr>';
+      }
+      h += '</tbody></table></div>';
+      return h;
+    }
+
+    /* Global Tab 2 & 3: Aggregated Multi-Site Plugins / Themes */
+    function renderGlobalExtensionsTab(isTheme) {
+      var groups = isTheme ? S.globalThemes : S.globalPlugins;
+      var label = isTheme ? 'Themes' : 'Plugins';
+      var q = S.search.trim().toLowerCase();
+
+      var h = '<div class="wptk-toolbar">';
+      h += '  <div class="wptk-toolbar-left">';
+      h += '    <button type="button" class="wptk-btn wptk-btn-sm ' + (S.extFilter === 'all' ? 'wptk-btn-primary' : '') + '" data-act="set-ext-filter" data-filter="all">Tất cả</button>';
+      h += '    <button type="button" class="wptk-btn wptk-btn-sm ' + (S.extFilter === 'outdated' ? 'wptk-btn-primary' : '') + '" data-act="set-ext-filter" data-filter="outdated">Có bản cập nhật</button>';
+      h += '    <button type="button" class="wptk-btn wptk-btn-sm ' + (S.extFilter === 'vuln' ? 'wptk-btn-primary' : '') + '" data-act="set-ext-filter" data-filter="vuln">Cảnh báo lỗ hổng CVE</button>';
+      h += '  </div>';
+      h += '  <button type="button" class="wptk-btn wptk-btn-sm" data-act="reload-global-ext" data-kind="' + (isTheme ? 'theme' : 'plugin') + '">' + IC.refresh + ' Quét lại ' + label + '</button>';
+      h += '</div>';
+
+      if (!groups) {
+        return h + '<div class="wptk-empty">Đang tổng hợp ' + label + ' trên toàn bộ các website của bạn...</div>';
+      }
+      var filtered = groups.filter(function (g) {
+        if (S.extFilter === 'outdated' && !(g.outdated_sites > 0)) return false;
+        if (S.extFilter === 'vuln' && !(g.vulnerable_sites > 0)) return false;
+        if (q && (g.title + ' ' + g.slug).toLowerCase().indexOf(q) === -1) return false;
+        return true;
+      });
+      if (filtered.length === 0) {
+        return h + '<div class="wptk-empty">Không có ' + label + ' nào khớp bộ lọc hiện tại.</div>';
+      }
+
+      h += '<div class="wptk-table-wrap"><table class="wptk-table"><thead><tr><th>' + label + '</th><th>Website đang cài</th><th>Cần cập nhật</th><th>Cảnh báo CVE</th><th style="text-align:right">Cập nhật hàng loạt (Smart Safe Update)</th></tr></thead><tbody>';
+      for (var i = 0; i < filtered.length; i++) {
+        var g = filtered[i];
+        var siteChips = (g.sites || []).map(function (sr) {
+          return '<span class="wptk-pill ' + (sr.update_available ? 'wptk-pill-amber' : 'wptk-pill-slate') + '" style="margin:2px;">' + esc(sr.domain + (sr.sub_path || '')) + ' (' + esc(sr.version) + ')</span>';
+        }).join(' ');
+        h += '<tr>';
+        h += '<td><strong>' + esc(g.title || g.slug) + '</strong><div style="font-size:11px;color:var(--muted);">' + esc(g.slug) + (g.latest_available ? ' • Mới nhất: ' + esc(g.latest_available) : '') + '</div></td>';
+        h += '<td>' + siteChips + '</td>';
+        h += '<td>' + (g.outdated_sites > 0 ? '<span class="wptk-pill wptk-pill-amber">' + g.outdated_sites + ' site</span>' : '<span class="wptk-pill wptk-pill-green">Mới nhất</span>') + '</td>';
+        h += '<td>' + (g.vulnerable_sites > 0 ? '<span class="wptk-pill wptk-pill-red">⚠ ' + g.vulnerable_sites + ' site dính CVE</span>' : '<span class="wptk-pill wptk-pill-green">0 CVE</span>') + '</td>';
+        h += '<td style="text-align:right">';
+        if (g.outdated_sites > 0) {
+          h += '<button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="mass-update-slug" data-kind="' + (isTheme ? 'theme' : 'plugin') + '" data-slug="' + esc(g.slug) + '">Cập nhật ' + g.outdated_sites + ' site</button>';
+        } else {
+          h += '<span style="font-size:11.5px;color:var(--muted);">Đã đồng bộ</span>';
+        }
+        h += '</td></tr>';
+      }
+      h += '</tbody></table></div>';
+      return h;
+    }
+
+    /* Global Tab 4: Plugin & Theme Sets */
+    function renderSetsTab() {
+      var q = S.search.trim().toLowerCase();
+      var list = S.sets.filter(function (ps) {
+        if (!q) return true;
+        return (ps.name + ' ' + ps.description + ' ' + (ps.plugins || []).join(' ')).toLowerCase().indexOf(q) !== -1;
+      });
+      var h = '<div class="wptk-toolbar"><div class="wptk-toolbar-left"><strong>Bộ Cài Đặt Nhanh Plugin &amp; Theme Sets</strong></div><button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="open-edit-set">' + IC.plus + ' Tạo Bộ Set Riêng</button></div>';
+      if (list.length === 0) {
+        return h + '<div class="wptk-empty">Chưa có bộ Plugin/Theme Set nào.</div>';
+      }
+      h += '<div class="wptk-tiles-grid">';
+      for (var i = 0; i < list.length; i++) {
+        var ps = list[i];
+        h += '<div class="wptk-tile">';
+        h += '  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><strong>' + esc(ps.name) + '</strong>' + (ps.built_in ? '<span class="wptk-pill wptk-pill-indigo">Hệ thống</span>' : '<span class="wptk-pill wptk-pill-slate">Cá nhân</span>') + '</div>';
+        h += '  <div style="font-size:12px;color:var(--muted);">' + esc(ps.description || '') + '</div>';
+        h += '  <div><div style="font-size:11.5px;font-weight:600;margin-bottom:4px;">Plugins (' + (ps.plugins || []).length + '):</div>' + ((ps.plugins || []).map(function (p) { return '<span class="wptk-pill wptk-pill-slate" style="margin:2px;">' + esc(p) + '</span>'; }).join('') || '—') + '</div>';
+        if (ps.themes && ps.themes.length) {
+          h += '<div><div style="font-size:11.5px;font-weight:600;margin-bottom:4px;">Themes:</div>' + ps.themes.map(function (th) { return '<span class="wptk-pill wptk-pill-green" style="margin:2px;">' + esc(th) + '</span>'; }).join('') + '</div>';
+        }
+        h += '  <div style="display:flex;justify-content:space-between;gap:8px;padding-top:8px;border-top:1px solid var(--border);">';
+        h += '    <button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="open-apply-set-pick" data-set="' + esc(ps.id) + '">Áp dụng lên Site...</button>';
+        if (!ps.built_in) {
+          h += '  <div style="display:flex;gap:6px;"><button type="button" class="wptk-btn wptk-btn-sm" data-act="open-edit-set" data-set="' + esc(ps.id) + '">Sửa</button><button type="button" class="wptk-btn wptk-btn-sm wptk-btn-danger" data-act="delete-set" data-set="' + esc(ps.id) + '">' + IC.trash + '</button></div>';
+        }
+        h += '  </div>';
+        h += '</div>';
+      }
+      h += '</div>';
+      return h;
+    }
+
+    /* Real-Time Background Job Progress Drawer */
+    function renderDrawer() {
+      if (!S.drawerOpen) {
+        drawerEl.innerHTML = '';
+        return;
+      }
+      var h = '<div class="wptk-drawer">';
+      h += '  <div class="wptk-modal-hdr"><h3 class="wptk-modal-title">⚡ Tiến trình Tác vụ Nền (' + S.jobs.length + ')</h3><button type="button" class="wptk-btn wptk-btn-icon" data-act="close-drawer">' + IC.close + '</button></div>';
+      h += '  <div class="wptk-modal-body">';
+      if (S.jobs.length === 0) {
+        h += '<div class="wptk-empty">Chưa có tác vụ chạy nền nào trong phiên này.</div>';
+      } else {
+        for (var i = 0; i < S.jobs.length; i++) {
+          var jb = S.jobs[i];
+          var stCls = jb.status === 'succeeded' ? 'wptk-pill-green' : (jb.status === 'failed' ? 'wptk-pill-red' : 'wptk-pill-indigo');
+          var pct = jb.status === 'succeeded' ? 100 : (jb.progress || 10);
+          h += '<div style="border:1px solid var(--border);border-radius:11px;padding:12px;">';
+          h += '  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><strong>' + esc(jb.type) + '</strong><span class="wptk-pill ' + stCls + '">' + esc(jb.status) + '</span></div>';
+          h += '  <div style="font-size:12px;color:var(--text-2);margin-top:5px;">' + esc(jb.message || '') + '</div>';
+          if (jb.error) {
+            h += '<div style="font-size:11.5px;color:var(--red-text);margin-top:4px;">' + esc(jb.error) + '</div>';
+          }
+          h += '  <div class="wptk-progress-track"><div class="wptk-progress-bar" style="width:' + pct + '%"></div></div>';
+          h += '  <div style="font-size:11px;color:var(--muted);margin-top:5px;">Cập nhật: ' + esc(fmtDate(jb.updated_at || jb.created_at)) + '</div>';
+          h += '</div>';
+        }
+      }
+      h += '  </div>';
+      h += '</div>';
+      drawerEl.innerHTML = h;
+    }
+
+    /* Data Loaders for Lazy Sub-Tabs & Global Matrices */
+    function loadSiteExtensions(id, isTheme) {
+      return api(isTheme ? 'list_themes' : 'list_plugins', { instance_id: id }).then(function (res) {
+        if (isTheme) S.siteThemes[id] = (res.data && res.data.themes) || [];
+        else S.sitePlugins[id] = (res.data && res.data.plugins) || [];
+        renderApp();
+      }).catch(function (e) { toast(e.message, 'err'); });
+    }
+
+    function loadSiteSecurity(id) {
+      return Promise.all([
+        api('get_security_status', { instance_id: id }),
+        api('list_quarantine', { instance_id: id })
+      ]).then(function (arr) {
+        S.siteSecurity[id] = arr[0].data || {};
+        S.siteQuarantine[id] = (arr[1].data && arr[1].data.items) || [];
+        var inst = findInstance(id);
+        if (inst && S.siteSecurity[id]) {
+          inst.security_score = S.siteSecurity[id].security_score || 0;
+          inst.security_total = S.siteSecurity[id].security_total || 12;
+          inst.core_shield_mode = S.siteSecurity[id].core_shield_mode || inst.core_shield_mode;
+          inst.core_integrity_clean = S.siteSecurity[id].core_integrity_clean;
+        }
+        renderApp();
+      }).catch(function (e) { toast(e.message, 'err'); });
+    }
+
+    function loadSiteTools(id) {
+      return api('get_tools_status', { instance_id: id }).then(function (res) {
+        S.siteTools[id] = res.data || {};
+        if (res.data && res.data.instance) upsertLocalInstance(res.data.instance);
+        renderApp();
+      }).catch(function (e) { toast(e.message, 'err'); });
+    }
+
+    function loadGlobalExtensions(isTheme) {
+      return api(isTheme ? 'list_all_themes' : 'list_all_plugins').then(function (res) {
+        if (isTheme) S.globalThemes = (res.data && res.data.themes) || [];
+        else S.globalPlugins = (res.data && res.data.plugins) || [];
+        renderApp();
+      }).catch(function (e) { toast(e.message, 'err'); });
+    }
+
+    /* Modal System */
+    function closeModal() {
+      modalEl.innerHTML = '';
+    }
+
+    function openModal(title, bodyHtml, footHtml, large) {
+      var h = '<div class="wptk-modal-backdrop" data-act="backdrop-close">';
+      h += '  <div class="wptk-modal ' + (large ? 'wptk-modal-lg' : '') + '" role="dialog" aria-modal="true">';
+      h += '    <div class="wptk-modal-hdr"><h3 class="wptk-modal-title">' + esc(title) + '</h3><button type="button" class="wptk-btn wptk-btn-icon" data-act="close-modal">' + IC.close + '</button></div>';
+      h += '    <div class="wptk-modal-body">' + bodyHtml + '</div>';
+      if (footHtml !== false) {
+        h += '  <div class="wptk-modal-foot">' + (footHtml || '<button type="button" class="wptk-btn" data-act="close-modal">Đóng</button>') + '</div>';
+      }
+      h += '  </div>';
+      h += '</div>';
+      modalEl.innerHTML = h;
+    }
+
+    /* 1. 1-Click Express / Custom WordPress Installer Modal */
+    function showInstallModal() {
+      var domOpts = S.domains.map(function (d) {
+        return '<option value="' + esc(d.domain) + '">' + esc(d.domain) + ' (' + esc(d.type || 'domain') + ' • PHP ' + esc(d.php_version || 'default') + ')</option>';
+      }).join('');
+      var setOpts = '<option value="">— Không cài sẵn bộ Set —</option>' + S.sets.map(function (ps) {
+        return '<option value="' + esc(ps.id) + '">' + esc(ps.name) + '</option>';
+      }).join('');
+
+      var b = '<form id="wptk-install-form">';
+      if (S.domains.length === 0) {
+        b += '<div class="wptk-alert wptk-alert-warn">Chưa tìm thấy tên miền nào trên tài khoản DirectAdmin. Bạn vẫn có thể nhập tên miền thủ công bên dưới.</div>';
+      }
+      b += '<div class="wptk-form-grid">';
+      b += '  <div class="wptk-field"><label>Tên miền (Main / Addon / Subdomain)</label>' + (S.domains.length ? '<select name="domain" class="wptk-select">' + domOpts + '</select>' : '<input name="domain" class="wptk-input" placeholder="example.com" required />') + '</div>';
+      b += '  <div class="wptk-field"><label>Thư mục con (Để trống = Cài ở gốc /)</label><input name="sub_path" class="wptk-input" placeholder="vd: /blog hoặc để trống" /></div>';
+      b += '  <div class="wptk-field"><label>Tiêu đề Website (Site Title)</label><input name="site_title" class="wptk-input" value="My WordPress Site" required /></div>';
+      b += '  <div class="wptk-field"><label>Ngôn ngữ (Locale)</label><select name="locale" class="wptk-select"><option value="vi">Tiếng Việt (vi)</option><option value="en_US">English (en_US)</option></select></div>';
+      b += '  <div class="wptk-field"><label>Tài khoản Admin WordPress</label><input name="admin_user" class="wptk-input" value="wp_' + esc((S.username || 'manager').slice(0, 8)) + '" required /></div>';
+      b += '  <div class="wptk-field"><label>Mật khẩu Admin (Để trống = Sinh ngẫu nhiên mạnh)</label><input type="password" name="admin_password" class="wptk-input" autocomplete="new-password" placeholder="Tự động tạo mật khẩu an toàn" /></div>';
+      b += '  <div class="wptk-field"><label>Email Quản trị</label><input type="email" name="admin_email" class="wptk-input" placeholder="admin@domain.com" /></div>';
+      b += '  <div class="wptk-field"><label>Bộ Plugin/Theme cài sẵn (Tùy chọn)</label><select name="set_id" class="wptk-select">' + setOpts + '</select></div>';
+      b += '</div>';
+      b += '<div class="wptk-alert" style="margin-top:12px;">Hệ thống tự động cấp phát cơ sở dữ liệu MariaDB, tạo <code>WP_CACHE_KEY_SALT</code> riêng biệt và kích hoạt lá chắn Core Integrity Shield ngay sau khi cài xong.</div>';
+      b += '</form>';
+
+      var f = '<button type="button" class="wptk-btn" data-act="close-modal">Hủy</button><button type="button" class="wptk-btn wptk-btn-primary" id="wptk-install-submit">' + IC.plus + ' Cài đặt WordPress 1-Click</button>';
+      openModal('Cài đặt WordPress 1-Click (Express & Custom)', b, f);
+
+      document.getElementById('wptk-install-submit').onclick = function () {
+        var form = document.getElementById('wptk-install-form');
+        var fd = new FormData(form);
+        var btn = this;
+        btn.disabled = true;
+        api('install_instance', {
+          params: {
+            domain: fd.get('domain') || '',
+            sub_path: fd.get('sub_path') || '',
+            site_title: fd.get('site_title') || '',
+            locale: fd.get('locale') || 'vi',
+            admin_user: fd.get('admin_user') || '',
+            admin_password: fd.get('admin_password') || '',
+            admin_email: fd.get('admin_email') || '',
+            set_id: fd.get('set_id') || ''
+          }
+        }).then(function (res) {
+          var d = res.data || {};
+          if (d.generated_password) {
+            openModal('Thông tin Đăng nhập WordPress Một Lần', '<div class="wptk-alert wptk-alert-ok">Tác vụ cài đặt đã được đưa vào hàng đợi nền! Vui lòng lưu lại mật khẩu một lần dưới đây (hoặc dùng nút <strong>Log in wp-admin</strong> không cần mật khẩu):</div><div class="wptk-kv-rows"><div class="wptk-kv-row"><span>Admin User</span><code>' + esc(d.admin_user) + '</code></div><div class="wptk-kv-row"><span>One-Time Password</span><code>' + esc(d.generated_password) + '</code></div></div>');
+          } else {
+            closeModal();
+            toast('Đã bắt đầu cài đặt WordPress trong nền!', 'ok');
+          }
+        }).catch(function (e) {
+          btn.disabled = false;
+          toast(e.message, 'err');
+        });
+      };
+    }
+
+    /* 2. Clone / Staging Wizard (TC-09) */
+    function showCloneModal(inst) {
+      var suggestedSub = 'staging.' + inst.domain.replace(/^www\./, '');
+      var b = '<form id="wptk-clone-form">';
+      b += '<div class="wptk-alert">Nhân bản toàn bộ mã nguồn &amp; cơ sở dữ liệu từ <strong>' + esc(inst.domain + (inst.sub_path || '')) + '</strong>. Tự động thay thế <code>PHP Serialized</code> + Elementor JSON URLs, cô lập <code>WP_CACHE_KEY_SALT</code> chống nhiễm chéo Redis và bật <code>noindex</code> cho Staging.</div>';
+      b += '<div class="wptk-form-grid" style="margin-top:12px;">';
+      b += '  <div class="wptk-field"><label>Tên miền / Subdomain đích</label><input name="target_domain" class="wptk-input" value="' + esc(suggestedSub) + '" required /></div>';
+      b += '  <div class="wptk-field"><label>Thư mục con đích (Tùy chọn)</label><input name="target_sub_path" class="wptk-input" placeholder="Để trống = gốc /" /></div>';
+      b += '  <div class="wptk-field"><label>Loại môi trường</label><select name="environment_tag" class="wptk-select"><option value="staging">Staging (Tự động bật noindex)</option><option value="production">Production (Cho phép Google)</option><option value="development">Development</option></select></div>';
+      b += '  <div class="wptk-field"><label>Tiêu đề Site mới (Tùy chọn)</label><input name="target_site_title" class="wptk-input" value="[Staging] ' + esc(inst.site_title || inst.domain) + '" /></div>';
+      b += '</div>';
+      b += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">';
+      b += '  <label class="wptk-check-label"><input type="checkbox" name="create_subdomain" class="wptk-checkbox" checked /> Tự động khởi tạo Subdomain trên DirectAdmin nếu chưa tồn tại</label>';
+      b += '  <label class="wptk-check-label"><input type="checkbox" name="overwrite" class="wptk-checkbox" /> Cho phép ghi đè nếu thư mục đích đã có tệp</label>';
+      b += '</div></form>';
+
+      openModal('Clone / Tạo môi trường Staging 1-Click', b, '<button type="button" class="wptk-btn" data-act="close-modal">Hủy</button><button type="button" class="wptk-btn wptk-btn-primary" id="wptk-clone-go">' + IC.clone + ' Bắt đầu Nhân bản</button>');
+      document.getElementById('wptk-clone-go').onclick = function () {
+        var fd = new FormData(document.getElementById('wptk-clone-form'));
+        this.disabled = true;
+        api('clone_instance', {
+          instance_id: inst.id,
+          params: {
+            target_domain: fd.get('target_domain'),
+            target_sub_path: fd.get('target_sub_path') || '',
+            environment_tag: fd.get('environment_tag') || 'staging',
+            target_site_title: fd.get('target_site_title') || '',
+            create_subdomain: fd.get('create_subdomain') === 'on',
+            overwrite: fd.get('overwrite') === 'on'
+          }
+        }).then(function () {
+          closeModal();
+          toast('Đã bắt đầu nhân bản Clone/Staging trong nền!', 'ok');
+        }).catch(function (e) { toast(e.message, 'err'); });
+      };
+    }
+
+    /* 3. Bidirectional Sync Wizard (Preserves WooCommerce Orders & Pre-Sync Snapshot) */
+    function showSyncModal(inst) {
+      var others = S.instances.filter(function (x) { return x.id !== inst.id; });
+      if (others.length === 0) {
+        return toast('Cần có ít nhất 2 website WordPress để thực hiện Đồng bộ (hãy Clone bản Staging trước).', 'err');
+      }
+      var opts = others.map(function (x) {
+        return '<option value="' + esc(x.id) + '">' + esc(x.domain + (x.sub_path || '')) + ' (' + esc(x.environment_tag || 'production') + ')</option>';
+      }).join('');
+
+      var b = '<form id="wptk-sync-form">';
+      b += '<div class="wptk-alert wptk-alert-warn">Đồng bộ đẩy dữ liệu từ <strong>' + esc(inst.domain + (inst.sub_path || '')) + '</strong> sang website đích bên dưới.</div>';
+      b += '<div class="wptk-form-grid" style="margin-top:12px;">';
+      b += '  <div class="wptk-field"><label>Website nhận đồng bộ (Target)</label><select name="target_instance_id" class="wptk-select">' + opts + '</select></div>';
+      b += '  <div class="wptk-field"><label>Chế độ đồng bộ</label><select name="mode" class="wptk-select"><option value="both">Cả Mã nguồn &amp; Database (Both)</option><option value="files">Chỉ Mã nguồn (Files Only)</option><option value="db">Chỉ Cơ sở dữ liệu (Database Only)</option></select></div>';
+      b += '</div>';
+      b += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">';
+      b += '  <label class="wptk-check-label"><input type="checkbox" name="auto_snapshot" class="wptk-checkbox" checked /> Tự động chụp bản sao lưu Zstd (<code>pre_sync</code>) trên site đích trước khi ghi đè</label>';
+      b += '  <label class="wptk-check-label"><input type="checkbox" name="preserve_woocommerce" class="wptk-checkbox" checked /> Bảo toàn 15 bảng Đơn hàng &amp; Khách hàng WooCommerce đang chạy trên Production</label>';
+      b += '  <label class="wptk-check-label"><input type="checkbox" name="overwrite_uploads" class="wptk-checkbox" checked /> Đồng bộ cả thư mục <code>wp-content/uploads</code></label>';
+      b += '</div></form>';
+
+      openModal('Đồng bộ 2 chiều Staging ↔ Production', b, '<button type="button" class="wptk-btn" data-act="close-modal">Hủy</button><button type="button" class="wptk-btn wptk-btn-primary" id="wptk-sync-go">' + IC.refresh + ' Thực thi Đồng bộ</button>');
+      document.getElementById('wptk-sync-go').onclick = function () {
+        var fd = new FormData(document.getElementById('wptk-sync-form'));
+        this.disabled = true;
+        api('sync_instance', {
+          instance_id: inst.id,
+          params: {
+            target_instance_id: fd.get('target_instance_id'),
+            mode: fd.get('mode') || 'both',
+            auto_snapshot: fd.get('auto_snapshot') === 'on',
+            preserve_woocommerce: fd.get('preserve_woocommerce') === 'on',
+            overwrite_uploads: fd.get('overwrite_uploads') === 'on'
+          }
+        }).then(function () {
+          closeModal();
+          toast('Đã đẩy tác vụ Đồng bộ vào hàng đợi nền!', 'ok');
+        }).catch(function (e) { toast(e.message, 'err'); });
+      };
+    }
+
+    /* 4. Zstd (.tar.zst) Snapshots Manager Modal */
+    function showSnapshotsModal(inst) {
+      openModal('Sao lưu & Khôi phục Nhanh Zstandard (.tar.zst) — ' + inst.domain, '<div class="wptk-empty">Đang tải danh sách bản sao lưu...</div>', false, true);
+      api('list_snapshots', { instance_id: inst.id }).then(function (res) {
+        var snaps = (res.data && res.data.snapshots) || [];
+        var b = '<form id="wptk-snap-create" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">';
+        b += '  <div class="wptk-field" style="flex:1;min-width:220px;"><label>Ghi chú bản sao lưu mới (Lưu tại /home/' + esc(S.username) + '/wp-snapshots/)</label><input name="note" class="wptk-input" placeholder="vd: Trước khi đổi giao diện mới" /></div>';
+        b += '  <button type="submit" class="wptk-btn wptk-btn-primary">' + IC.archive + ' Tạo Snapshot .tar.zst ngay</button>';
+        b += '</form>';
+
+        if (snaps.length === 0) {
+          b += '<div class="wptk-empty">Chưa có bản Snapshot nào cho website này (Giới hạn tự xoay vòng: ' + (S.policy.max_snapshots_per_site || 5) + ' bản/site).</div>';
+        } else {
+          b += '<div class="wptk-table-wrap"><table class="wptk-table"><thead><tr><th>Thời điểm</th><th>Loại / Ghi chú</th><th>Kích thước</th><th>WP / DB</th><th style="text-align:right">Thao tác</th></tr></thead><tbody>';
+          snaps.forEach(function (sn) {
+            var dlUrl = API_URL + '?action=get_snapshot_download&stream=1&instance_id=' + encodeURIComponent(inst.id) + '&params[snapshot_id]=' + encodeURIComponent(sn.id);
+            b += '<tr><td>' + esc(fmtDate(sn.created_at)) + '</td><td><span class="wptk-pill wptk-pill-indigo">' + esc(sn.kind) + '</span> ' + esc(sn.note || sn.file_name) + '</td><td>' + esc(fmtBytes(sn.size_bytes)) + '</td><td>WP ' + esc(sn.wp_version) + (sn.includes_db ? ' + SQL' : '') + '</td>';
+            b += '<td style="text-align:right;white-space:nowrap;"><button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-snap-restore="' + esc(sn.id) + '">Khôi phục</button> <a class="wptk-btn wptk-btn-sm" href="' + esc(dlUrl) + '" style="text-decoration:none;">Tải .tar.zst</a> <button type="button" class="wptk-btn wptk-btn-sm wptk-btn-danger" data-snap-del="' + esc(sn.id) + '">' + IC.trash + '</button></td></tr>';
+          });
+          b += '</tbody></table></div>';
+        }
+        openModal('Sao lưu & Khôi phục Nhanh Zstandard (.tar.zst) — ' + inst.domain, b, '<button type="button" class="wptk-btn" data-act="close-modal">Đóng</button>', true);
+
+        document.getElementById('wptk-snap-create').onsubmit = function (ev) {
+          ev.preventDefault();
+          var note = new FormData(this).get('note') || '';
+          api('create_snapshot', { instance_id: inst.id, params: { note: note } }).then(function () {
+            closeModal();
+            toast('Đang đóng gói Snapshot .tar.zst trong nền...', 'ok');
+          }).catch(function (e) { toast(e.message, 'err'); });
+        };
+
+        modalEl.querySelectorAll('[data-snap-restore]').forEach(function (btn) {
+          btn.onclick = function () {
+            var sid = this.getAttribute('data-snap-restore');
+            if (!confirm('Khôi phục toàn bộ mã nguồn & cơ sở dữ liệu về bản Snapshot này?')) return;
+            api('restore_snapshot', { instance_id: inst.id, params: { snapshot_id: sid } }).then(function () {
+              closeModal();
+              toast('Đang khôi phục Snapshot an toàn 2 pha...', 'ok');
+            }).catch(function (e) { toast(e.message, 'err'); });
+          };
+        });
+        modalEl.querySelectorAll('[data-snap-del]').forEach(function (btn) {
+          btn.onclick = function () {
+            var sid = this.getAttribute('data-snap-del');
+            api('delete_snapshot', { instance_id: inst.id, params: { snapshot_id: sid } }).then(function () {
+              toast('Đã xóa bản Snapshot.', 'ok');
+              loadBootstrap(true);
+              showSnapshotsModal(inst);
+            }).catch(function (e) { toast(e.message, 'err'); });
+          };
+        });
+      }).catch(function (e) { closeModal(); toast(e.message, 'err'); });
+    }
+
+    /* 5. Serialized-Safe Search & Replace Modal with Dry-Run Table */
+    function showSearchReplaceModal(inst) {
+      var curUrl = inst.site_url || ('https://' + inst.domain);
+      var b = '<div class="wptk-alert">Hỗ trợ đầy đủ dữ liệu <code>PHP Serialized</code> &amp; Elementor JSON. Luôn bấm <strong>Chạy thử (Dry-Run)</strong> để kiểm tra số ô thay đổi trước khi ghi thật.</div>';
+      b += '<div class="wptk-form-grid"><div class="wptk-field"><label>Chuỗi / URL cần tìm</label><input id="wptk-sr-from" class="wptk-input" value="' + esc(curUrl.replace('https://', 'http://')) + '" /></div><div class="wptk-field"><label>Chuỗi / URL thay thế</label><input id="wptk-sr-to" class="wptk-input" value="' + esc(curUrl) + '" /></div></div>';
+      b += '<div id="wptk-sr-result"></div>';
+      var f = '<button type="button" class="wptk-btn" data-act="close-modal">Đóng</button><button type="button" class="wptk-btn" id="wptk-sr-dry">🔍 Xem trước (Dry-Run)</button><button type="button" class="wptk-btn wptk-btn-primary" id="wptk-sr-live">⚡ Thay thế thật</button>';
+      openModal('Search & Replace URL An Toàn — ' + inst.domain, b, f, true);
+
+      function runSR(dry) {
+        var sVal = document.getElementById('wptk-sr-from').value.trim();
+        var rVal = document.getElementById('wptk-sr-to').value.trim();
+        var box = document.getElementById('wptk-sr-result');
+        box.innerHTML = '<div class="wptk-alert">Đang xử lý...</div>';
+        api('search_replace', { instance_id: inst.id, params: { search: sVal, replace: rVal, dry_run: dry } }).then(function (res) {
+          var d = res.data || {};
+          var h = '<div class="wptk-alert ' + (dry ? '' : 'wptk-alert-ok') + '"><strong>' + (dry ? 'Kết quả xem trước (Chưa ghi DB): ' : 'Đã thay thế thành công: ') + '</strong>' + (d.total_replacements || 0) + ' vị trí trên ' + (d.tables_affected || 0) + ' bảng.</div>';
+          if (d.details && d.details.length) {
+            h += '<div class="wptk-table-wrap" style="margin-top:8px;"><table class="wptk-table"><thead><tr><th>Bảng</th><th>Cột</th><th>Số thay đổi</th><th>Kiểu</th></tr></thead><tbody>';
+            d.details.forEach(function (row) {
+              if (row.replacements > 0) {
+                h += '<tr><td><code>' + esc(row.table) + '</code></td><td><code>' + esc(row.column) + '</code></td><td><strong>' + row.replacements + '</strong></td><td>' + esc(row.type) + '</td></tr>';
+              }
+            });
+            h += '</tbody></table></div>';
+          }
+          box.innerHTML = h;
+          if (!dry) loadBootstrap(true);
+        }).catch(function (e) { box.innerHTML = ''; toast(e.message, 'err'); });
+      }
+      document.getElementById('wptk-sr-dry').onclick = function () { runSR(true); };
+      document.getElementById('wptk-sr-live').onclick = function () {
+        if (confirm('Thực thi thay thế trực tiếp vào cơ sở dữ liệu?')) runSR(false);
+      };
+    }
+
+    /* 6. Quick Tools Setup Modals (Maintenance, Debug Log Tail, Password Auth, Admin Setup, Cron, Site Title) */
+    function showMaintenanceSetup(inst) {
+      api('get_tools_status', { instance_id: inst.id }).then(function (res) {
+        var m = (res.data && res.data.maintenance) || {};
+        var b = '<form id="wptk-maint-form"><div class="wptk-field"><label>Tiêu đề trang bảo trì (HTTP 503)</label><input name="headline" class="wptk-input" value="' + esc(m.headline || 'Website đang bảo trì nâng cấp') + '" /></div>';
+        b += '<div class="wptk-field" style="margin-top:10px;"><label>Thông điệp hiển thị cho khách truy cập</label><textarea name="message" rows="3" class="wptk-textarea">' + esc(m.message || 'Chúng tôi đang nâng cấp hệ thống và sẽ quay trở lại ngay trong ít phút.') + '</textarea></div>';
+        b += '<div class="wptk-field" style="margin-top:10px;"><label>Header Retry-After (giây — bảo vệ SEO Googlebot)</label><input type="number" name="retry_after_sec" class="wptk-input" value="' + esc(m.retry_after_sec || 600) + '" /></div>';
+        b += '<label class="wptk-check-label" style="margin-top:12px;"><input type="checkbox" name="enabled" class="wptk-checkbox" ' + (inst.maintenance_mode ? 'checked' : '') + ' /> Bật chế độ bảo trì ngay</label></form>';
+        openModal('Cấu hình Trang Bảo Trì HTTP 503', b, '<button type="button" class="wptk-btn" data-act="close-modal">Hủy</button><button type="button" class="wptk-btn wptk-btn-primary" id="wptk-maint-save">Lưu cấu hình</button>');
+        document.getElementById('wptk-maint-save').onclick = function () {
+          var fd = new FormData(document.getElementById('wptk-maint-form'));
+          api('set_maintenance_mode', {
+            instance_id: inst.id,
+            params: {
+              enabled: fd.get('enabled') === 'on',
+              headline: fd.get('headline'),
+              message: fd.get('message'),
+              retry_after_sec: Number(fd.get('retry_after_sec') || 600)
+            }
+          }).then(function () { closeModal(); toast('Đã cập nhật chế độ bảo trì!', 'ok'); loadBootstrap(true); }).catch(function (e) { toast(e.message, 'err'); });
+        };
+      });
+    }
+
+    function showDebugAndLogModal(inst) {
+      Promise.all([
+        api('get_tools_status', { instance_id: inst.id }),
+        api('read_debug_log', { instance_id: inst.id })
+      ]).then(function (arr) {
+        var dbg = (arr[0].data && arr[0].data.debug) || {};
+        var logData = arr[1].data || {};
+        var b = '<form id="wptk-dbg-form" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border);">';
+        b += '<label class="wptk-check-label"><input type="checkbox" name="wp_debug" class="wptk-checkbox" ' + (dbg.wp_debug ? 'checked' : '') + ' /> WP_DEBUG</label>';
+        b += '<label class="wptk-check-label"><input type="checkbox" name="wp_debug_log" class="wptk-checkbox" ' + (dbg.wp_debug_log ? 'checked' : '') + ' /> WP_DEBUG_LOG</label>';
+        b += '<label class="wptk-check-label"><input type="checkbox" name="wp_debug_display" class="wptk-checkbox" ' + (dbg.wp_debug_display ? 'checked' : '') + ' /> WP_DEBUG_DISPLAY</label>';
+        b += '<button type="submit" class="wptk-btn wptk-btn-primary wptk-btn-sm">Lưu hằng số Debug</button></form>';
+        b += '<div style="display:flex;justify-content:space-between;align-items:center;"><strong>wp-content/debug.log (Reverse 32 KB Tail • Tổng: ' + esc(fmtBytes(logData.total_bytes || 0)) + ')</strong><button type="button" class="wptk-btn wptk-btn-sm wptk-btn-danger" id="wptk-dbg-clear">Xóa rỗng log</button></div>';
+        b += '<div class="wptk-code-box">' + esc(logData.content || '(Tệp debug.log hiện đang trống)') + '</div>';
+        openModal('Cấu hình WP_DEBUG & Xem Nhật ký Lỗi — ' + inst.domain, b, '<button type="button" class="wptk-btn" data-act="close-modal">Đóng</button>', true);
+
+        document.getElementById('wptk-dbg-form').onsubmit = function (ev) {
+          ev.preventDefault();
+          var fd = new FormData(this);
+          api('set_debug_config', {
+            instance_id: inst.id,
+            params: { wp_debug: fd.get('wp_debug') === 'on', wp_debug_log: fd.get('wp_debug_log') === 'on', wp_debug_display: fd.get('wp_debug_display') === 'on' }
+          }).then(function () { toast('Đã lưu cấu hình WP_DEBUG!', 'ok'); loadBootstrap(true); }).catch(function (e) { toast(e.message, 'err'); });
+        };
+        document.getElementById('wptk-dbg-clear').onclick = function () {
+          api('clear_debug_log', { instance_id: inst.id }).then(function () { toast('Đã xóa rỗng debug.log.', 'ok'); showDebugAndLogModal(inst); }).catch(function (e) { toast(e.message, 'err'); });
+        };
+      }).catch(function (e) { toast(e.message, 'err'); });
+    }
+
+    function showPasswordProtectSetup(inst) {
+      api('get_tools_status', { instance_id: inst.id }).then(function (res) {
+        var pw = (res.data && res.data.password_protection) || {};
+        var b = '<form id="wptk-pw-form"><div class="wptk-alert">Mật khẩu được băm <code>APR1-MD5 ($apr1$...)</code> và lưu ngoài <code>public_html</code>, đồng bộ tự động với Apache, LiteSpeed, OpenLiteSpeed và Nginx.</div>';
+        b += '<div class="wptk-form-grid" style="margin-top:12px;">';
+        b += '<div class="wptk-field"><label>Tài khoản HTTP Basic Auth</label><input name="username" class="wptk-input" value="' + esc(pw.username || 'staging') + '" required /></div>';
+        b += '<div class="wptk-field"><label>Mật khẩu truy cập mới</label><input type="password" name="password" class="wptk-input" placeholder="Nhập mật khẩu bảo vệ thư mục" /></div>';
+        b += '<div class="wptk-field"><label>Tiêu đề hộp thoại (Realm)</label><input name="realm" class="wptk-input" value="' + esc(pw.realm || 'Protected WordPress Area') + '" /></div>';
+        b += '</div><label class="wptk-check-label" style="margin-top:12px;"><input type="checkbox" name="enabled" class="wptk-checkbox" ' + (pw.enabled || !inst.password_protected ? 'checked' : '') + ' /> Bật khóa mật khẩu HTTP cho website này</label></form>';
+        openModal('Khóa Mật Khẩu Thư Mục Website (HTTP Basic Auth)', b, '<button type="button" class="wptk-btn" data-act="close-modal">Hủy</button><button type="button" class="wptk-btn wptk-btn-primary" id="wptk-pw-save">Áp dụng</button>');
+        document.getElementById('wptk-pw-save').onclick = function () {
+          var fd = new FormData(document.getElementById('wptk-pw-form'));
+          api('set_password_protection', {
+            instance_id: inst.id,
+            params: { enabled: fd.get('enabled') === 'on', username: fd.get('username'), password: fd.get('password'), realm: fd.get('realm') }
+          }).then(function () { closeModal(); toast('Đã cập nhật khóa mật khẩu HTTP!', 'ok'); loadBootstrap(true); }).catch(function (e) { toast(e.message, 'err'); });
+        };
+      });
+    }
+
+    function showAdminSetupModal(inst) {
+      var b = '<form id="wptk-adm-form"><div class="wptk-form-grid">';
+      b += '<div class="wptk-field"><label>Chế độ thao tác</label><select name="operation" class="wptk-select"><option value="update">Cập nhật mật khẩu / email quản trị hiện tại</option><option value="create_emergency">Tạo mới tài khoản Quản trị viên khẩn cấp</option></select></div>';
+      b += '<div class="wptk-field"><label>Tên đăng nhập Admin</label><input name="admin_user" class="wptk-input" value="' + esc(inst.admin_user || 'admin') + '" required /></div>';
+      b += '<div class="wptk-field"><label>Email Quản trị</label><input type="email" name="email" class="wptk-input" value="' + esc(inst.admin_email || '') + '" placeholder="admin@domain.com" /></div>';
+      b += '<div class="wptk-field"><label>Mật khẩu mới (Truyền qua STDIN an toàn)</label><input type="password" name="new_password" class="wptk-input" placeholder="Nhập mật khẩu mới (>= 8 ký tự)" /></div>';
+      b += '</div></form>';
+      openModal('Quản lý Tài khoản Quản trị WordPress [Setup]', b, '<button type="button" class="wptk-btn" data-act="close-modal">Hủy</button><button type="button" class="wptk-btn wptk-btn-primary" id="wptk-adm-save">Lưu thay đổi</button>');
+      document.getElementById('wptk-adm-save').onclick = function () {
+        var fd = new FormData(document.getElementById('wptk-adm-form'));
+        api('manage_admin_account', {
+          instance_id: inst.id,
+          params: { operation: fd.get('operation'), admin_user: fd.get('admin_user'), email: fd.get('email'), new_password: fd.get('new_password') }
+        }).then(function (res) {
+          closeModal();
+          if (res.data) upsertLocalInstance(res.data);
+          renderApp();
+          toast('Đã cập nhật thông tin Quản trị viên WordPress!', 'ok');
+        }).catch(function (e) { toast(e.message, 'err'); });
+      };
+    }
+
+    /* 7. WordPress.org Live Search & Chunked .zip Installer */
+    function showWPOrgModal(inst, kind) {
+      var label = kind === 'theme' ? 'Theme' : 'Plugin';
+      var b = '<div style="display:flex;gap:8px;"><input id="wptk-wporg-q" class="wptk-input" placeholder="Nhập tên ' + label + ' trên kho chính thức WordPress.org (vd: litespeed-cache, rank-math)..." /><button type="button" class="wptk-btn wptk-btn-primary" id="wptk-wporg-btn">Tìm kiếm</button></div>';
+      b += '<div id="wptk-wporg-list" style="margin-top:8px;"><div class="wptk-empty">Nhập từ khóa để tìm kiếm trực tiếp từ api.wordpress.org (kèm kiểm tra CVE).</div></div>';
+      openModal('Cài đặt ' + label + ' từ WordPress.org — ' + inst.domain, b, '<button type="button" class="wptk-btn" data-act="close-modal">Đóng</button>', true);
+
+      function doSearch() {
+        var q = document.getElementById('wptk-wporg-q').value.trim();
+        var box = document.getElementById('wptk-wporg-list');
+        box.innerHTML = '<div class="wptk-empty">Đang tra cứu kho WordPress.org...</div>';
+        api('search_wporg', { forcePost: true, params: { kind: kind, search: q, per_page: 10 } }).then(function (res) {
+          var items = (res.data && res.data.items) || [];
+          if (!items.length) {
+            box.innerHTML = '<div class="wptk-empty">Không tìm thấy kết quả phù hợp.</div>';
+            return;
+          }
+          var h = '<div class="wptk-table-wrap"><table class="wptk-table"><thead><tr><th>Tên ' + label + '</th><th>Phiên bản</th><th>Cảnh báo CVE</th><th style="text-align:right">Cài đặt</th></tr></thead><tbody>';
+          items.forEach(function (it) {
+            var vCount = (it.vulns && it.vulns.length) || 0;
+            h += '<tr><td><strong>' + esc(it.name || it.slug) + '</strong><div style="font-size:11.5px;color:var(--muted);">' + esc(it.short_description || it.slug) + '</div></td><td>' + esc(it.version) + '</td><td>' + (vCount ? '<span class="wptk-pill wptk-pill-red">⚠ ' + vCount + ' CVE</span>' : '<span class="wptk-pill wptk-pill-green">Sạch</span>') + '</td><td style="text-align:right"><button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-install-slug="' + esc(it.slug) + '">Cài &amp; Bật</button></td></tr>';
+          });
+          h += '</tbody></table></div>';
+          box.innerHTML = h;
+          box.querySelectorAll('[data-install-slug]').forEach(function (btn) {
+            btn.onclick = function () {
+              var slug = this.getAttribute('data-install-slug');
+              this.disabled = true;
+              api(kind === 'theme' ? 'manage_theme' : 'manage_plugin', {
+                instance_id: inst.id,
+                params: { operation: 'install_slug', slug: slug, activate: true }
+              }).then(function () {
+                toast('Đã cài đặt & kích hoạt ' + slug + '!', 'ok');
+                loadSiteExtensions(inst.id, kind === 'theme');
+                loadBootstrap(true);
+              }).catch(function (e) { toast(e.message, 'err'); });
+            };
+          });
+        }).catch(function (e) { box.innerHTML = ''; toast(e.message, 'err'); });
+      }
+      document.getElementById('wptk-wporg-btn').onclick = doSearch;
+      document.getElementById('wptk-wporg-q').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } };
+    }
+
+    function showZipUploadModal(inst, kind) {
+      var label = kind === 'theme' ? 'Theme' : 'Plugin';
+      var b = '<div class="wptk-alert">Tệp <code>.zip</code> được kiểm duyệt chống <strong>Zip-Slip</strong>, <strong>Symlink Escape</strong> và <strong>Zip-Bomb</strong> trước khi giải nén dưới quyền UID người dùng.</div>';
+      b += '<div class="wptk-field"><label>Chọn gói ' + label + ' (.zip tối đa 64 MB từ máy tính)</label><input type="file" id="wptk-zip-file" accept=".zip" class="wptk-input" /></div>';
+      b += '<label class="wptk-check-label"><input type="checkbox" id="wptk-zip-act" class="wptk-checkbox" checked /> Tự động kích hoạt ngay sau khi cài đặt</label>';
+      b += '<div id="wptk-zip-prog"></div>';
+      openModal('Tải lên gói ' + label + ' (.zip) — ' + inst.domain, b, '<button type="button" class="wptk-btn" data-act="close-modal">Hủy</button><button type="button" class="wptk-btn wptk-btn-primary" id="wptk-zip-go">⬆ Tải lên &amp; Cài đặt</button>');
+      document.getElementById('wptk-zip-go').onclick = function () {
+        var fInput = document.getElementById('wptk-zip-file');
+        var file = fInput && fInput.files && fInput.files[0];
+        var act = document.getElementById('wptk-zip-act').checked;
+        var prog = document.getElementById('wptk-zip-prog');
+        var btn = this;
+        btn.disabled = true;
+        uploadExtensionZip(inst.id, kind, file, act, function (pct) {
+          prog.innerHTML = '<div style="font-size:12px;">Đang truyền an toàn gói .zip: ' + pct + '%</div><div class="wptk-progress-track"><div class="wptk-progress-bar" style="width:' + pct + '%"></div></div>';
+        }).then(function () {
+          closeModal();
+          toast('Đã cài đặt gói ' + label + ' thành công!', 'ok');
+          loadSiteExtensions(inst.id, kind === 'theme');
+          loadBootstrap(true);
+        }).catch(function (e) { btn.disabled = false; toast(e.message, 'err'); });
+      };
+    }
+
+    /* 8. Quarantine Unified Diff Viewer & Set Modals */
+    function showQuarantineDiff(qid) {
+      api('get_quarantine_diff', { forcePost: true, params: { quarantine_id: qid } }).then(function (res) {
+        var it = res.data || {};
+        var lines = String(it.diff_preview || '(Tệp thực thi lạ mới xuất hiện — không có bản gốc trong Core)').split('\n');
+        var colored = lines.map(function (ln) {
+          if (ln.indexOf('+++') === 0 || ln.indexOf('---') === 0 || ln.indexOf('@@') === 0) return '<span class="wptk-diff-hdr">' + esc(ln) + '</span>';
+          if (ln.indexOf('+') === 0) return '<span class="wptk-diff-add">' + esc(ln) + '</span>';
+          if (ln.indexOf('-') === 0) return '<span class="wptk-diff-del">' + esc(ln) + '</span>';
+          return esc(ln);
+        }).join('\n');
+        var b = '<div class="wptk-kv-rows" style="margin-top:0;"><div class="wptk-kv-row"><span>Tệp cách ly</span><code>' + esc(it.rel_path) + '</code></div><div class="wptk-kv-row"><span>SHA-256 bị nhiễm</span><code style="font-size:11px;">' + esc(it.sha256) + '</code></div></div>';
+        b += '<div class="wptk-code-box">' + colored + '</div>';
+        openModal('Xem trước Unified Diff Cách Ly (Read-Only, Zero-Eval)', b, '<button type="button" class="wptk-btn" data-act="close-modal">Đóng</button>', true);
+      }).catch(function (e) { toast(e.message, 'err'); });
+    }
+
+    function showEditSetModal(setId) {
+      var existing = null;
+      for (var i = 0; i < S.sets.length; i++) if (S.sets[i].id === setId) existing = S.sets[i];
+      var b = '<form id="wptk-set-form">';
+      b += '<div class="wptk-field"><label>Tên Bộ Set</label><input name="name" class="wptk-input" value="' + esc(existing ? existing.name : '') + '" placeholder="vd: Agency E-Commerce Stack" required /></div>';
+      b += '<div class="wptk-field" style="margin-top:10px;"><label>Mô tả ngắn</label><input name="description" class="wptk-input" value="' + esc(existing ? existing.description : '') + '" /></div>';
+      b += '<div class="wptk-field" style="margin-top:10px;"><label>Danh sách Plugin Slugs (phân tách dấu phẩy)</label><input name="plugins" class="wptk-input" value="' + esc(existing ? (existing.plugins || []).join(', ') : 'litespeed-cache, seo-by-rank-math, wordfence') + '" /></div>';
+      b += '<div class="wptk-field" style="margin-top:10px;"><label>Danh sách Theme Slugs (tùy chọn)</label><input name="themes" class="wptk-input" value="' + esc(existing ? (existing.themes || []).join(', ') : '') + '" /></div>';
+      b += '</form>';
+      openModal(existing ? 'Chỉnh sửa Bộ Set' : 'Tạo Bộ Plugin/Theme Set Cá Nhân', b, '<button type="button" class="wptk-btn" data-act="close-modal">Hủy</button><button type="button" class="wptk-btn wptk-btn-primary" id="wptk-set-save">Lưu Bộ Set</button>');
+      document.getElementById('wptk-set-save').onclick = function () {
+        var fd = new FormData(document.getElementById('wptk-set-form'));
+        api('save_set', {
+          params: { id: existing ? existing.id : '', name: fd.get('name'), description: fd.get('description'), plugins: fd.get('plugins'), themes: fd.get('themes') }
+        }).then(function () { closeModal(); toast('Đã lưu Bộ Set!', 'ok'); loadBootstrap(true); }).catch(function (e) { toast(e.message, 'err'); });
+      };
+    }
+
+    /* Unified Event Delegation (Zero Inline JS) */
+    rootEl.addEventListener('click', function (ev) {
+      var target = ev.target.closest('[data-act]');
+      if (!target) return;
+      var act = target.getAttribute('data-act');
+      if (target.tagName === 'INPUT' && target.type === 'checkbox') return; // Handled in 'change'
+
+      var id = target.getAttribute('data-id') || '';
+      var inst = id ? findInstance(id) : null;
+
+      if (act === 'backdrop-close' && ev.target !== target) return;
+      if (act === 'close-modal' || act === 'backdrop-close') { closeModal(); return; }
+      if (act === 'open-drawer') { S.drawerOpen = true; renderDrawer(); pollJobsNow(); return; }
+      if (act === 'close-drawer') { S.drawerOpen = false; renderDrawer(); return; }
+
+      if (act === 'toggle-lang') {
+        S.lang = S.lang === 'vi' ? 'en' : 'vi';
+        localStorage.setItem('dawptk_lang', S.lang);
+        renderApp();
+        return;
+      }
+      if (act === 'toggle-theme') {
+        var next = rootEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        S.theme = next;
+        localStorage.setItem('dawptk_theme', next);
+        applyTheme();
+        renderApp();
+        return;
+      }
+      if (act === 'refresh-all') { loadBootstrap(false); toast('Đã làm mới dữ liệu!', 'ok'); return; }
+
+      if (act === 'switch-gtab') {
+        S.globalTab = target.getAttribute('data-tab') || 'instances';
+        renderApp();
+        if (S.globalTab === 'plugins' && !S.globalPlugins) loadGlobalExtensions(false);
+        if (S.globalTab === 'themes' && !S.globalThemes) loadGlobalExtensions(true);
+        return;
+      }
+      if (act === 'set-view') {
+        S.viewMode = target.getAttribute('data-view') || 'cards';
+        localStorage.setItem('dawptk_view', S.viewMode);
+        renderApp();
+        return;
+      }
+      if (act === 'focus-card') {
+        S.viewMode = 'cards';
+        S.collapsedIds[id] = false;
+        renderApp();
+        return;
+      }
+      if (act === 'toggle-collapse') {
+        S.collapsedIds[id] = !S.collapsedIds[id];
+        renderApp();
+        return;
+      }
+      if (act === 'switch-subtab') {
+        var sub = target.getAttribute('data-sub') || 'info';
+        S.subTabs[id] = sub;
+        renderApp();
+        if (sub === 'plugins' && !S.sitePlugins[id]) loadSiteExtensions(id, false);
+        if (sub === 'themes' && !S.siteThemes[id]) loadSiteExtensions(id, true);
+        if (sub === 'security') loadSiteSecurity(id);
+        if (sub === 'dbconfig') loadSiteTools(id);
+        return;
+      }
+
+      if (act === 'open-install') { showInstallModal(); return; }
+      if (act === 'scan-sites') {
+        toast('Đang quét Zero-Eval toàn bộ Domain & Subdomain...');
+        api('scan_instances', { params: { reattach: true } }).then(function (res) {
+          var d = res.data || {};
+          toast('Quét hoàn tất: phát hiện ' + (d.discovered_total || 0) + ' site (mới: ' + (d.added_count || 0) + ')!', 'ok');
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+
+      if (act === 'sso-login' && inst) {
+        var win = window.open('about:blank', '_blank');
+        api('sso_login', { instance_id: id }).then(function (res) {
+          var url = res.data && res.data.login_url;
+          if (win && url) win.location.href = url;
+          else if (url) window.location.href = url;
+        }).catch(function (e) { if (win) win.close(); toast(e.message, 'err'); });
+        return;
+      }
+
+      if (act === 'refresh-instance' && inst) {
+        loadSiteTools(id);
+        if (S.subTabs[id] === 'plugins') loadSiteExtensions(id, false);
+        if (S.subTabs[id] === 'themes') loadSiteExtensions(id, true);
+        if (S.subTabs[id] === 'security') loadSiteSecurity(id);
+        toast('Đã cập nhật trạng thái ' + inst.domain, 'ok');
+        return;
+      }
+
+      if (act === 'open-title' && inst) {
+        var nt = prompt('Nhập tiêu đề mới cho website (Site Title):', inst.site_title || inst.domain);
+        if (nt && nt.trim()) {
+          api('update_site_title', { instance_id: id, params: { site_title: nt.trim() } }).then(function (res) {
+            if (res.data) upsertLocalInstance(res.data);
+            renderApp();
+            toast('Đã cập nhật tiêu đề website!', 'ok');
+          }).catch(function (e) { toast(e.message, 'err'); });
+        }
+        return;
+      }
+
+      if (act === 'verify-core-now' && inst) {
+        toast('Đang đối chiếu SHA-256 Core & tự động khôi phục từ Local Verified Cache...');
+        api('verify_core', { instance_id: id, params: { heal: true } }).then(function (res) {
+          var r = res.data || {};
+          toast('Core nguyên vẹn! Đã tự khôi phục ' + ((r.healed_files && r.healed_files.length) || 0) + ' tệp, cách ly ' + ((r.quarantined_ids && r.quarantined_ids.length) || 0) + ' tệp lạ.', 'ok');
+          loadBootstrap(true);
+          if (S.subTabs[id] === 'security') loadSiteSecurity(id);
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+
+      if (act === 'open-admin-setup' && inst) { showAdminSetupModal(inst); return; }
+      if (act === 'open-clone' && inst) { showCloneModal(inst); return; }
+      if (act === 'open-sync' && inst) { showSyncModal(inst); return; }
+      if (act === 'open-snapshots' && inst) { showSnapshotsModal(inst); return; }
+      if (act === 'open-search-replace' && inst) { showSearchReplaceModal(inst); return; }
+      if (act === 'open-maint-setup' && inst) { showMaintenanceSetup(inst); return; }
+      if (act === 'open-debug-setup' && inst) { showDebugAndLogModal(inst); return; }
+      if (act === 'open-pwprotect-setup' && inst) { showPasswordProtectSetup(inst); return; }
+
+      if (act === 'open-cron-setup' && inst) {
+        var iv = prompt('Nhập chu kỳ chạy System Cron trên DirectAdmin (phút: 5, 10, 15, 30, 60):', String(inst.cron_interval_min || 15));
+        if (iv) {
+          api('set_wp_cron', { instance_id: id, params: { disable_wp_cron: true, interval_min: Number(iv) || 15 } }).then(function () {
+            toast('Đã đồng bộ System Cron (' + iv + 'm) vào DirectAdmin crontab.conf!', 'ok');
+            loadBootstrap(true);
+          }).catch(function (e) { toast(e.message, 'err'); });
+        }
+        return;
+      }
+
+      if (act === 'clear-cache' && inst) {
+        api('clear_cache', { instance_id: id }).then(function () {
+          toast('Đã xóa sạch WP Object Cache, LSCache & Transients!', 'ok');
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+
+      /* Plugins / Themes Actions */
+      if (act === 'reload-site-ext' && inst) { loadSiteExtensions(id, target.getAttribute('data-kind') === 'theme'); return; }
+      if (act === 'open-wporg-install' && inst) { showWPOrgModal(inst, target.getAttribute('data-kind') || 'plugin'); return; }
+      if (act === 'open-zip-install' && inst) { showZipUploadModal(inst, target.getAttribute('data-kind') || 'plugin'); return; }
+
+      if (act === 'ext-op' && inst && target.tagName === 'BUTTON') {
+        var kind = target.getAttribute('data-kind') || 'plugin';
+        var op = target.getAttribute('data-op');
+        var slug = target.getAttribute('data-slug');
+        if (op === 'delete' && !confirm('Xóa vĩnh viễn ' + slug + ' khỏi website?')) return;
+        api(kind === 'theme' ? 'manage_theme' : 'manage_plugin', {
+          instance_id: id,
+          params: { operation: op, slug: slug }
+        }).then(function () {
+          toast('Đã thực thi ' + op + ' cho ' + slug, 'ok');
+          loadSiteExtensions(id, kind === 'theme');
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+
+      if ((act === 'smart-update-single' || act === 'smart-update-all-ext') && inst) {
+        var uKind = target.getAttribute('data-kind') || 'plugin';
+        var uSlug = target.getAttribute('data-slug') || '';
+        var p = {};
+        if (act === 'smart-update-all-ext') {
+          if (uKind === 'theme') p.all_themes = true; else p.all_plugins = true;
+        } else {
+          if (uKind === 'theme') p.theme_slugs = [uSlug]; else p.plugin_slugs = [uSlug];
+        }
+        api('smart_update', { instance_id: id, params: p }).then(function () {
+          toast('Smart Safe Update (có tự động hoàn tác nếu lỗi HTTP 500) đang chạy!', 'ok');
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+
+      if (act === 'open-cve-modal' && inst) {
+        var cKind = target.getAttribute('data-kind');
+        var cSlug = target.getAttribute('data-slug');
+        var arr = (cKind === 'theme' ? S.siteThemes[id] : S.sitePlugins[id]) || [];
+        var found = null;
+        for (var k = 0; k < arr.length; k++) if (arr[k].slug === cSlug) found = arr[k];
+        var vList = (found && found.vulns) || [];
+        var vb = vList.map(function (v) {
+          return '<div style="border:1px solid var(--red-border);background:var(--red-bg);padding:12px;border-radius:10px;"><div style="display:flex;justify-content:space-between;"><strong>' + esc(v.cve_id || v.id) + ' — ' + esc(v.title) + '</strong><span class="wptk-pill wptk-pill-red">CVSS ' + esc(v.cvss_score || '') + ' (' + esc(v.severity) + ')</span></div><div style="font-size:12px;margin-top:6px;">Bản vá an toàn: <strong>' + esc(v.patched_version || 'Chưa có bản vá — khuyến nghị tắt ngay!') + '</strong></div></div>';
+        }).join('');
+        openModal('Chi tiết Cảnh báo Lỗ hổng CVE — ' + cSlug, vb || 'Không có dữ liệu CVE.');
+        return;
+      }
+
+      /* Security Tab Actions */
+      if (act === 'set-shield-mode' && inst) {
+        var newMode = target.getAttribute('data-mode');
+        api('set_shield_mode', { instance_id: id, params: { mode: newMode } }).then(function () {
+          toast('Đã chuyển Core Integrity Shield sang chế độ ' + newMode + '!', 'ok');
+          loadSiteSecurity(id);
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+      if (act === 'view-q-diff') { showQuarantineDiff(target.getAttribute('data-qid')); return; }
+      if (act === 'restore-q' && inst) {
+        api('restore_quarantine', { params: { quarantine_id: target.getAttribute('data-qid'), whitelist: true } }).then(function () {
+          toast('Đã khôi phục tệp & thêm vào Core Whitelist!', 'ok');
+          loadSiteSecurity(id);
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+      if (act === 'delete-q' && inst) {
+        api('delete_quarantine', { params: { quarantine_id: target.getAttribute('data-qid') } }).then(function () {
+          toast('Đã xóa vĩnh viễn tệp cách ly.', 'ok');
+          loadSiteSecurity(id);
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+      if (act === 'open-whitelist' && inst) {
+        var secObj = S.siteSecurity[id] || {};
+        var wItems = secObj.whitelist || [];
+        var wb = '<form id="wptk-wl-form" style="display:flex;gap:8px;"><input name="path" class="wptk-input" placeholder="vd: wp-admin/custom-sso.php" required /><button type="submit" class="wptk-btn wptk-btn-primary">Thêm ngoại lệ</button></form>';
+        wb += '<div style="margin-top:10px;">' + (wItems.length ? wItems.map(function (p) {
+          return '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);"><code>' + esc(p) + '</code><button type="button" class="wptk-btn wptk-btn-sm wptk-btn-danger" data-wl-del="' + esc(p) + '">Gỡ</button></div>';
+        }).join('') : '<div style="color:var(--muted);font-size:12px;">Chưa có đường dẫn ngoại lệ nào.</div>') + '</div>';
+        openModal('Danh sách Ngoại lệ Core Whitelist — ' + inst.domain, wb);
+        document.getElementById('wptk-wl-form').onsubmit = function (e) {
+          e.preventDefault();
+          var p = new FormData(this).get('path');
+          api('manage_whitelist', { instance_id: id, params: { operation: 'add', path: p } }).then(function () { closeModal(); loadSiteSecurity(id); toast('Đã thêm vào Whitelist!', 'ok'); }).catch(function (err) { toast(err.message, 'err'); });
+        };
+        modalEl.querySelectorAll('[data-wl-del]').forEach(function (b) {
+          b.onclick = function () {
+            api('manage_whitelist', { instance_id: id, params: { operation: 'remove', path: this.getAttribute('data-wl-del') } }).then(function () { closeModal(); loadSiteSecurity(id); toast('Đã gỡ khỏi Whitelist.', 'ok'); });
+          };
+        });
+        return;
+      }
+
+      if (act === 'apply-preset' && inst) {
+        api('apply_hardening', { instance_id: id, params: { preset: target.getAttribute('data-preset') } }).then(function () {
+          toast('Đã áp dụng gói quy tắc gia cố bảo mật!', 'ok');
+          loadSiteSecurity(id);
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+      if (act === 'apply-rule' && inst) {
+        var ruleId = target.getAttribute('data-rule');
+        var rp = { rule_ids: [ruleId] };
+        if (ruleId === 'rename_default_admin') {
+          var nu = prompt('Nhập tên tài khoản quản trị mới để thay thế "admin":', 'wp_' + (S.username || 'mgr'));
+          if (!nu) return;
+          rp.new_admin_user = nu;
+        } else if (ruleId === 'change_db_prefix') {
+          var np = prompt('Nhập tiền tố bảng mới (kết thúc bằng dấu _):', 'wp9x_');
+          if (!np) return;
+          rp.new_table_prefix = np;
+        }
+        api('apply_hardening', { instance_id: id, params: rp }).then(function () {
+          toast('Đã bật quy tắc bảo mật!', 'ok');
+          loadSiteSecurity(id);
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+      if (act === 'revert-rule' && inst) {
+        api('revert_hardening', { instance_id: id, params: { rule_ids: [target.getAttribute('data-rule')] } }).then(function () {
+          toast('Đã hoàn tác quy tắc bảo mật.', 'ok');
+          loadSiteSecurity(id);
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+
+      if (act === 'db-maint' && inst) {
+        var dbOp = target.getAttribute('data-op');
+        toast('Đang thực thi ' + dbOp + ' trên cơ sở dữ liệu MariaDB...');
+        api('db_maintenance', { instance_id: id, params: { operation: dbOp } }).then(function (res) {
+          openModal('Kết quả ' + dbOp.toUpperCase() + ' Database', '<div class="wptk-code-box">' + esc((res.data && res.data.output) || 'Success') + '</div>');
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+
+      /* Global Extensions & Sets & Bulk Toolbar Actions */
+      if (act === 'set-ext-filter') { S.extFilter = target.getAttribute('data-filter') || 'all'; renderApp(); return; }
+      if (act === 'reload-global-ext') { loadGlobalExtensions(target.getAttribute('data-kind') === 'theme'); return; }
+      if (act === 'mass-update-slug') {
+        var mKind = target.getAttribute('data-kind');
+        var mSlug = target.getAttribute('data-slug');
+        var srcGroups = (mKind === 'theme' ? S.globalThemes : S.globalPlugins) || [];
+        var targetSiteIds = [];
+        srcGroups.forEach(function (g) {
+          if (g.slug === mSlug) {
+            (g.sites || []).forEach(function (sr) { if (sr.update_available) targetSiteIds.push(sr.instance_id); });
+          }
+        });
+        if (!targetSiteIds.length) return;
+        var mp = { instance_ids: targetSiteIds };
+        if (mKind === 'theme') mp.theme_slugs = [mSlug]; else mp.plugin_slugs = [mSlug];
+        api('bulk_smart_update', { params: mp }).then(function () {
+          toast('Đang chạy Mass Smart Safe Update cho ' + mSlug + ' trên ' + targetSiteIds.length + ' site!', 'ok');
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+
+      if (act === 'open-edit-set') { showEditSetModal(target.getAttribute('data-set') || ''); return; }
+      if (act === 'delete-set') {
+        if (!confirm('Xóa bộ Set cá nhân này?')) return;
+        api('delete_set', { params: { set_id: target.getAttribute('data-set') } }).then(function () { toast('Đã xóa Bộ Set.', 'ok'); loadBootstrap(true); }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+      if (act === 'open-apply-set' && inst) {
+        var optsSet = S.sets.map(function (ps) { return '<option value="' + esc(ps.id) + '">' + esc(ps.name) + '</option>'; }).join('');
+        openModal('Áp dụng Bộ Plugin/Theme Set — ' + inst.domain, '<div class="wptk-field"><label>Chọn Bộ Set cần cài đặt</label><select id="wptk-pick-set" class="wptk-select">' + optsSet + '</select></div>', '<button type="button" class="wptk-btn" data-act="close-modal">Hủy</button><button type="button" class="wptk-btn wptk-btn-primary" id="wptk-apply-set-go">Cài đặt ngay</button>');
+        document.getElementById('wptk-apply-set-go').onclick = function () {
+          var sid = document.getElementById('wptk-pick-set').value;
+          this.disabled = true;
+          api('apply_set', { instance_id: id, params: { set_id: sid } }).then(function () { closeModal(); toast('Đã áp dụng Bộ Set thành công!', 'ok'); loadSiteExtensions(id, false); loadBootstrap(true); }).catch(function (e) { toast(e.message, 'err'); });
+        };
+        return;
+      }
+      if (act === 'open-apply-set-pick') {
+        if (!S.instances.length) { toast('Chưa có website nào để áp dụng.', 'err'); return; }
+        var chosenSetId = target.getAttribute('data-set');
+        var iOpts = S.instances.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.domain + (x.sub_path || '')) + '</option>'; }).join('');
+        openModal('Áp dụng Bộ Set lên Website', '<div class="wptk-field"><label>Chọn Website đích</label><select id="wptk-pick-inst" class="wptk-select">' + iOpts + '</select></div>', '<button type="button" class="wptk-btn" data-act="close-modal">Hủy</button><button type="button" class="wptk-btn wptk-btn-primary" id="wptk-apply-pick-go">Áp dụng</button>');
+        document.getElementById('wptk-apply-pick-go').onclick = function () {
+          var targetInstId = document.getElementById('wptk-pick-inst').value;
+          this.disabled = true;
+          api('apply_set', { instance_id: targetInstId, params: { set_id: chosenSetId } }).then(function () { closeModal(); toast('Đã cài đặt Bộ Set thành công!', 'ok'); loadBootstrap(true); }).catch(function (e) { toast(e.message, 'err'); });
+        };
+        return;
+      }
+
+      if (act === 'open-bulk-update') {
+        var bIds = selectedInstanceIds();
+        if (!bIds.length) {
+          S.instances.forEach(function (x) { if (x.update_count > 0) bIds.push(x.id); });
+        }
+        if (!bIds.length) { toast('Tất cả website hiện đã ở phiên bản mới nhất!', 'ok'); return; }
+        if (!confirm('Chạy Smart Safe Update (Plugins + Themes, có tự động Rollback nếu HTTP 500) cho ' + bIds.length + ' website?')) return;
+        api('bulk_smart_update', { params: { instance_ids: bIds, all_plugins: true, all_themes: true } }).then(function () {
+          toast('Đã khởi chạy Bulk Smart Safe Update cho ' + bIds.length + ' website!', 'ok');
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+
+      if (act === 'open-bulk-security') {
+        var sIds = selectedInstanceIds();
+        if (!sIds.length) S.instances.forEach(function (x) { sIds.push(x.id); });
+        if (!sIds.length) return;
+        if (!confirm('Áp dụng 6 quy tắc gia cố bảo mật Critical & kiểm tra toàn vẹn Core cho ' + sIds.length + ' website?')) return;
+        Promise.all(sIds.map(function (sid) {
+          return api('apply_hardening', { instance_id: sid, params: { preset: 'critical' } });
+        })).then(function () {
+          toast('Đã gia cố bảo mật đồng loạt cho ' + sIds.length + ' website!', 'ok');
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+
+      if (act === 'bulk-detach') {
+        var dIds = selectedInstanceIds();
+        if (!dIds.length || !confirm('Ngắt theo dõi ' + dIds.length + ' website (giữ nguyên toàn bộ mã nguồn & cơ sở dữ liệu)?')) return;
+        Promise.all(dIds.map(function (did) { return api('detach_instance', { instance_id: did }); })).then(function () {
+          S.selectedIds = {};
+          toast('Đã ngắt theo dõi ' + dIds.length + ' website.', 'ok');
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+
+      if (act === 'open-uninstall' || act === 'open-bulk-remove') {
+        var rIds = act === 'open-uninstall' ? [id] : selectedInstanceIds();
+        if (!rIds.length) return;
+        var names = rIds.map(function (rid) { var x = findInstance(rid); return x ? (x.domain + (x.sub_path || '')) : rid; }).join(', ');
+        var ub = '<div class="wptk-alert wptk-alert-warn">Bạn sắp gỡ cài đặt WordPress tại: <strong>' + esc(names) + '</strong>. Các thư mục Subdomain anh em vẫn được bảo toàn an toàn.</div>';
+        ub += '<label class="wptk-check-label" style="margin-top:8px;"><input type="checkbox" id="wptk-rm-db" class="wptk-checkbox" checked /> Xóa luôn cơ sở dữ liệu MariaDB tương ứng trên DirectAdmin</label>';
+        ub += '<label class="wptk-check-label" style="margin-top:8px;"><input type="checkbox" id="wptk-rm-snap" class="wptk-checkbox" /> Xóa các bản sao lưu Zstd Snapshot của site này</label>';
+        openModal('Xác nhận Gỡ Cài Đặt WordPress', ub, '<button type="button" class="wptk-btn" data-act="close-modal">Hủy</button><button type="button" class="wptk-btn wptk-btn-primary wptk-btn-danger" id="wptk-rm-confirm" style="background:#dc2626;border-color:#dc2626;">Xóa vĩnh viễn</button>');
+        document.getElementById('wptk-rm-confirm').onclick = function () {
+          var dropDb = document.getElementById('wptk-rm-db').checked;
+          var purgeSnap = document.getElementById('wptk-rm-snap').checked;
+          this.disabled = true;
+          Promise.all(rIds.map(function (rid) {
+            return api('uninstall_instance', { instance_id: rid, params: { drop_db: dropDb, purge_snapshots: purgeSnap } });
+          })).then(function () {
+            S.selectedIds = {};
+            closeModal();
+            toast('Đã gỡ cài đặt WordPress thành công.', 'ok');
+            loadBootstrap(true);
+          }).catch(function (e) { toast(e.message, 'err'); });
+        };
+      }
+    });
+
+    /* Checkbox & Switch Change Delegation */
+    rootEl.addEventListener('change', function (ev) {
+      var el = ev.target;
+      var act = el.getAttribute('data-act');
+      if (!act) return;
+      var id = el.getAttribute('data-id') || '';
+      var inst = id ? findInstance(id) : null;
+      var checked = !!el.checked;
+
+      if (act === 'toggle-select-all') {
+        filteredInstances().forEach(function (it) { S.selectedIds[it.id] = checked; });
+        renderApp();
+        return;
+      }
+      if (act === 'toggle-select-one') {
+        S.selectedIds[id] = checked;
+        renderApp();
+        return;
+      }
+      if (!inst) return;
+
+      if (act === 'toggle-indexing') {
+        inst.search_indexing = checked;
+        renderApp();
+        api('set_search_indexing', { instance_id: id, params: { enabled: checked } }).then(function (r) {
+          if (r.data) upsertLocalInstance(r.data);
+          renderApp();
+          toast('Đã cập nhật trạng thái lập chỉ mục Google!', 'ok');
+        }).catch(function (e) { toast(e.message, 'err'); loadBootstrap(true); });
+        return;
+      }
+      if (act === 'toggle-caching') {
+        inst.cache_enabled = checked;
+        renderApp();
+        api('set_caching', { instance_id: id, params: { enabled: checked } }).then(function (r) {
+          if (r.data) upsertLocalInstance(r.data);
+          renderApp();
+          toast('Đã ' + (checked ? 'bật' : 'tắt') + ' bộ nhớ đệm Caching!', 'ok');
+        }).catch(function (e) { toast(e.message, 'err'); loadBootstrap(true); });
+        return;
+      }
+      if (act === 'toggle-maintenance') {
+        inst.maintenance_mode = checked;
+        renderApp();
+        api('set_maintenance_mode', { instance_id: id, params: { enabled: checked } }).then(function () {
+          toast('Chế độ bảo trì: ' + (checked ? 'ĐANG BẬT (503)' : 'ĐÃ TẮT'), 'ok');
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); loadBootstrap(true); });
+        return;
+      }
+      if (act === 'toggle-debug') {
+        inst.debug_mode = checked;
+        renderApp();
+        api('set_debug_config', { instance_id: id, params: { wp_debug: checked, wp_debug_log: checked, wp_debug_display: false } }).then(function () {
+          toast('WP_DEBUG: ' + (checked ? 'ĐANG BẬT' : 'ĐÃ TẮT'), 'ok');
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); loadBootstrap(true); });
+        return;
+      }
+      if (act === 'toggle-pwprotect') {
+        if (checked) {
+          el.checked = false;
+          showPasswordProtectSetup(inst);
+        } else {
+          api('set_password_protection', { instance_id: id, params: { enabled: false } }).then(function () {
+            toast('Đã gỡ khóa mật khẩu HTTP.', 'ok');
+            loadBootstrap(true);
+          }).catch(function (e) { toast(e.message, 'err'); loadBootstrap(true); });
+        }
+        return;
+      }
+      if (act === 'toggle-wpcron') {
+        inst.disable_wp_cron = checked;
+        renderApp();
+        api('set_wp_cron', { instance_id: id, params: { disable_wp_cron: checked, interval_min: inst.cron_interval_min || 15 } }).then(function () {
+          toast(checked ? 'Đã chuyển wp-cron sang System Cron DirectAdmin!' : 'Đã quay về wp-cron mặc định.', 'ok');
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); loadBootstrap(true); });
+        return;
+      }
+      if (act === 'toggle-core-shield') {
+        var targetMode = checked ? 'auto_heal' : 'monitor';
+        api('set_shield_mode', { instance_id: id, params: { mode: targetMode } }).then(function () {
+          toast('Core Self-Protection: ' + targetMode, 'ok');
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); loadBootstrap(true); });
+        return;
+      }
+      if (act === 'ext-op') {
+        var eKind = el.getAttribute('data-kind') || 'plugin';
+        var eOp = el.getAttribute('data-op');
+        var eSlug = el.getAttribute('data-slug');
+        api(eKind === 'theme' ? 'manage_theme' : 'manage_plugin', {
+          instance_id: id,
+          params: { operation: eOp, slug: eSlug }
+        }).then(function () {
+          toast('Đã cập nhật ' + eSlug, 'ok');
+          loadSiteExtensions(id, eKind === 'theme');
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); loadSiteExtensions(id, eKind === 'theme'); });
+      }
+    });
+
+    /* Inline Form Submit Delegation (Safe wp-config.php Editor) */
+    rootEl.addEventListener('submit', function (ev) {
+      var form = ev.target;
+      if (form.getAttribute('data-form') === 'save-wpconfig') {
+        ev.preventDefault();
+        var id = form.getAttribute('data-id');
+        var fd = new FormData(form);
+        api('update_safe_wpconfig', {
+          instance_id: id,
+          params: {
+            wp_memory_limit: fd.get('wp_memory_limit'),
+            wp_max_memory_limit: fd.get('wp_max_memory_limit'),
+            wp_post_revisions: Number(fd.get('wp_post_revisions') || 10),
+            autosave_interval: Number(fd.get('autosave_interval') || 60),
+            empty_trash_days: Number(fd.get('empty_trash_days') || 30)
+          }
+        }).then(function () {
+          toast('Đã lưu các hằng số an toàn vào wp-config.php!', 'ok');
+          loadSiteTools(id);
+          loadBootstrap(true);
+        }).catch(function (e) { toast(e.message, 'err'); });
+      }
+    });
+
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') { closeModal(); }
+    });
+
+    loadBootstrap(false);
+  })();
+  </script>
+</div>
+DAWPTK_USER_HTML

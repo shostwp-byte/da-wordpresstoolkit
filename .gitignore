@@ -1,0 +1,28 @@
+# Compiled binaries & build artifacts
+/bin/
+/dist/
+/da-wptoolkit
+/da-wptoolkit.exe
+*.tar.gz
+*.tar.zst
+checksums.txt
+checksums.txt.sig
+manifest.json
+
+# Runtime & live server configurations (never commit live customer data)
+plugin/data/default_policy.conf
+plugin/data/packages/*.conf
+plugin/data/sets/*.json
+updater.conf
+*.sock
+*.log
+*.key
+
+# OS & IDE files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*~

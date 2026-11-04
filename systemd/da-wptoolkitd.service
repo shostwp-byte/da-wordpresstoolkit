@@ -1,0 +1,40 @@
+[Unit]
+Description=DirectAdmin WordPress Toolkit & Core Integrity Shield Daemon (da-wptoolkitd)
+Documentation=https://github.com/shostwp-byte/da-wordpresstoolkit
+After=network.target mariadb.service mysqld.service directadmin.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/sbin/da-wptoolkit serve
+Restart=always
+RestartSec=2s
+
+# Protect WordPress Core Integrity Shield daemon from host OOM Killer
+OOMScoreAdjust=-850
+LimitNOFILE=65535
+UMask=0022
+
+# Systemd sandboxing & privilege hardening
+# Note: NoNewPrivileges must remain 'no' only if invoking suid helpers; we drop UID/GID directly via syscall.Credential,
+# and child WP-CLI processes explicitly set PR_SET_NO_NEW_PRIVS.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=da-wptoolkitd
+
+[Install]
+WantedBy=multi-user.target
