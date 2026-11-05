@@ -25,7 +25,7 @@ const (
 	DefaultProcRoot      = "/proc"
 	DefaultDASessionsDir = "/usr/local/directadmin/data/sessions"
 	DefaultCSRFKeyPath   = "/var/lib/da-wptoolkit/secret/csrf.key"
-	DefaultSessionMaxAge = 24 * time.Hour
+	DefaultSessionMaxAge = 7 * 24 * time.Hour
 	csrfWindowSeconds    = 43200 // 12 hours
 	maxLineageDepth      = 16
 )
@@ -404,6 +404,7 @@ func (g *Guard) loadOrInitCSRFKey() ([]byte, error) {
 }
 
 func (g *Guard) verifyDASessionFile(sessionID string) (effectiveUser string, creatorUser string, err error) {
+	sessionID = strings.TrimPrefix(strings.TrimSpace(sessionID), "da_sess_")
 	if err := config.ValidateSessionID(sessionID); err != nil {
 		return "", "", fmt.Errorf("%w: %v", ErrUnauthorizedSession, err)
 	}

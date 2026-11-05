@@ -1263,7 +1263,7 @@ cat <<'DAWPTK_USER_HTML'
       if (!silent) S.loading = true;
       return api('get_bootstrap').then(function (res) {
         var d = res.data || {};
-        S.version = d.version || 'v0.6.0';
+        S.version = d.version || 'v1.0.1';
         S.username = d.username || '';
         S.pkg = d.package || '';
         S.policy = d.policy || {};

@@ -114,3 +114,39 @@ func TestPerUIDSlidingWindowRateLimiter(t *testing.T) {
 		t.Fatalf("req 3 should hit 429 rate limit, got: %+v", r)
 	}
 }
+
+func TestRequestUnmarshalAcceptsPHPEmptyArrayParams(t *testing.T) {
+	mh := &mockHandler{}
+	srv := NewServer("", "", mh)
+	srv.GetPeerCred = func(_ net.Conn) (auth.PeerCred, error) {
+		return auth.PeerCred{PID: 500, UID: 0, GID: 0}, nil
+	}
+
+	sendPayload := func(raw string) Response {
+		c1, c2 := net.Pipe()
+		defer c1.Close()
+		go srv.ServeConn(context.Background(), c2, true)
+		go func() {
+			_, _ = c1.Write([]byte(raw + "\n"))
+		}()
+		line, err := bufio.NewReader(c1).ReadBytes('\n')
+		if err != nil {
+			t.Fatalf("read error: %v", err)
+		}
+		var r Response
+		if err := json.Unmarshal(line, &r); err != nil {
+			t.Fatalf("unmarshal error: %v", err)
+		}
+		return r
+	}
+
+	if r := sendPayload(`{"action":"get_overview","params":[]}`); !r.OK {
+		t.Fatalf("expected PHP empty array params [] to succeed, got: %+v", r)
+	}
+	if r := sendPayload(`{"action":"get_overview","params":{}}`); !r.OK {
+		t.Fatalf("expected empty object params {} to succeed, got: %+v", r)
+	}
+	if r := sendPayload(`{"action":"get_overview","params":[1,2]}`); r.OK || r.Code != 400 {
+		t.Fatalf("expected non-empty array params [1,2] to fail with 400, got: %+v", r)
+	}
+}

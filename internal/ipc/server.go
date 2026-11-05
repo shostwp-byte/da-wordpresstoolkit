@@ -196,10 +196,12 @@ func (s *Server) ServeConn(ctx context.Context, conn net.Conn, isAdminSocket boo
 		return
 	}
 
-	// Root CLI operations over Admin Socket (e.g. synchronous `install` or server-wide `scan`)
-	// may legitimately run up to 3 minutes while downloading packages.
-	if isAdminSocket && cred.UID == 0 {
+	// Admin Socket operations (CLI root commands, server-wide scan, CVE sync, or Core cache download)
+	// and User Socket package operations may legitimately run up to 60-180s over the network.
+	if isAdminSocket {
 		_ = conn.SetWriteDeadline(time.Now().Add(180 * time.Second))
+	} else {
+		_ = conn.SetWriteDeadline(time.Now().Add(60 * time.Second))
 	}
 
 	var resp Response

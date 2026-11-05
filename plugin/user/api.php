@@ -74,7 +74,7 @@ function extract_da_session_id(): string
     if ($cookieHeader !== '') {
         foreach (explode(';', $cookieHeader) as $part) {
             $kv = explode('=', trim($part), 2);
-            if (count($kv) === 2 && ($kv[0] === 'session' || $kv[0] === 'SESSION_ID')) {
+            if (count($kv) === 2 && ($kv[0] === 'session' || $kv[0] === 'SESSION_ID' || $kv[0] === 'da_sess')) {
                 return trim(urldecode($kv[1]));
             }
         }
@@ -239,6 +239,9 @@ $sockPath = getenv('DA_WPTK_USER_SOCK') ?: '/var/run/da-wptoolkit-user.sock';
 
 function call_user_daemon(string $sockPath, array $reqPayload): array
 {
+    if (isset($reqPayload['params']) && is_array($reqPayload['params'])) {
+        $reqPayload['params'] = (object) $reqPayload['params'];
+    }
     $errno = 0;
     $errstr = '';
     $fp = @stream_socket_client('unix://' . $sockPath, $errno, $errstr, 5.0);
@@ -249,7 +252,7 @@ function call_user_daemon(string $sockPath, array $reqPayload): array
             'error' => "WordPress Toolkit service is temporarily unavailable ({$errstr}).",
         ], 200);
     }
-    stream_set_timeout($fp, 30);
+    stream_set_timeout($fp, 60);
     fwrite($fp, json_encode($reqPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n");
     $rawReply = fgets($fp);
     fclose($fp);

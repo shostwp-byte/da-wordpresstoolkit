@@ -69,7 +69,7 @@ function extract_admin_session_id(): string
     if ($cookieHeader !== '') {
         foreach (explode(';', $cookieHeader) as $part) {
             $kv = explode('=', trim($part), 2);
-            if (count($kv) === 2 && ($kv[0] === 'session' || $kv[0] === 'SESSION_ID')) {
+            if (count($kv) === 2 && ($kv[0] === 'session' || $kv[0] === 'SESSION_ID' || $kv[0] === 'da_sess')) {
                 return trim(urldecode($kv[1]));
             }
         }
@@ -163,6 +163,7 @@ if ($csrfToken === '') {
     $csrfToken = trim((string) (getenv('HTTP_X_DAWPTK_CSRF') ?: ''));
 }
 
+$rawParams = isset($input['params']) && is_array($input['params']) ? $input['params'] : [];
 $ipcReq = [
     'action'      => $action,
     'username'    => trim((string) ($input['username'] ?? '')),
@@ -171,7 +172,7 @@ $ipcReq = [
     'instance_id' => trim((string) ($input['instance_id'] ?? '')),
     'job_id'      => trim((string) ($input['job_id'] ?? '')),
     'limit'       => isset($input['limit']) ? (int) $input['limit'] : 0,
-    'params'      => isset($input['params']) && is_array($input['params']) ? $input['params'] : [],
+    'params'      => (object) $rawParams,
 ];
 
 $sockPath = getenv('DA_WPTK_ADMIN_SOCK') ?: '/var/run/da-wptoolkit.sock';
@@ -186,7 +187,7 @@ if ($fp === false) {
     ], 200);
 }
 
-stream_set_timeout($fp, 15);
+stream_set_timeout($fp, 120);
 fwrite($fp, json_encode($ipcReq, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n");
 $rawReply = fgets($fp);
 fclose($fp);
