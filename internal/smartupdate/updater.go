@@ -211,6 +211,24 @@ func (e *Engine) UpdateInstance(
 	report(50, fmt.Sprintf("Updating %d plugin(s) and %d theme(s) via sandboxed WP-CLI", len(pluginTargets), len(themeTargets)))
 	var updateExecErr error
 	if len(pluginTargets) > 0 {
+		_, _ = e.WPCLI.Run(ctx, wpcli.CallOptions{
+			Account:     acct,
+			DocRoot:     verifiedRoot,
+			PHP:         phpSel,
+			Args:        []string{"transient", "delete", "update_plugins", "--network"},
+			SkipPlugins: true,
+			SkipThemes:  true,
+			Timeout:     10 * time.Second,
+		})
+		_, _ = e.WPCLI.Run(ctx, wpcli.CallOptions{
+			Account:     acct,
+			DocRoot:     verifiedRoot,
+			PHP:         phpSel,
+			Args:        []string{"transient", "delete", "update_plugins"},
+			SkipPlugins: true,
+			SkipThemes:  true,
+			Timeout:     10 * time.Second,
+		})
 		args := append([]string{"plugin", "update"}, pluginTargets...)
 		if _, rErr := e.WPCLI.Run(ctx, wpcli.CallOptions{
 			Account:     acct,
@@ -227,6 +245,24 @@ func (e *Engine) UpdateInstance(
 	}
 
 	if updateExecErr == nil && len(themeTargets) > 0 {
+		_, _ = e.WPCLI.Run(ctx, wpcli.CallOptions{
+			Account:     acct,
+			DocRoot:     verifiedRoot,
+			PHP:         phpSel,
+			Args:        []string{"transient", "delete", "update_themes", "--network"},
+			SkipPlugins: true,
+			SkipThemes:  true,
+			Timeout:     10 * time.Second,
+		})
+		_, _ = e.WPCLI.Run(ctx, wpcli.CallOptions{
+			Account:     acct,
+			DocRoot:     verifiedRoot,
+			PHP:         phpSel,
+			Args:        []string{"transient", "delete", "update_themes"},
+			SkipPlugins: true,
+			SkipThemes:  true,
+			Timeout:     10 * time.Second,
+		})
 		args := append([]string{"theme", "update"}, themeTargets...)
 		if _, rErr := e.WPCLI.Run(ctx, wpcli.CallOptions{
 			Account:     acct,

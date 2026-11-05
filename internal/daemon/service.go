@@ -285,18 +285,21 @@ func (s *Service) HandleAdminRequest(ctx context.Context, cred auth.PeerCred, re
 		if rErr != nil {
 			return ipc.Response{OK: false, Code: 404, Error: rErr.Error()}
 		}
+		forceRefresh := paramBool(req.Params, "force_refresh", false)
 		if action == "list_themes" {
-			items, lErr := s.Extensions.ListThemes(ctx, acct, inst.ID)
+			items, lErr := s.Extensions.ListThemesWithOptions(ctx, acct, inst.ID, forceRefresh)
 			if lErr != nil {
 				return ipc.Response{OK: false, Code: 500, Error: lErr.Error()}
 			}
-			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"themes": items}}
+			updatedInst, _ := s.Store.GetInstance(inst.ID)
+			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"themes": items, "instance": updatedInst}}
 		}
-		items, lErr := s.Extensions.ListPlugins(ctx, acct, inst.ID)
+		items, lErr := s.Extensions.ListPluginsWithOptions(ctx, acct, inst.ID, forceRefresh)
 		if lErr != nil {
 			return ipc.Response{OK: false, Code: 500, Error: lErr.Error()}
 		}
-		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"plugins": items}}
+		updatedInst, _ := s.Store.GetInstance(inst.ID)
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"plugins": items, "instance": updatedInst}}
 
 	case "manage_plugin", "manage_theme":
 		if s.Extensions == nil {
@@ -677,47 +680,55 @@ func (s *Service) HandleUserRequest(ctx context.Context, cred auth.PeerCred, req
 		if s.Extensions == nil {
 			return ipc.Response{OK: false, Code: 503, Error: "extensions manager is not configured"}
 		}
-		items, lErr := s.Extensions.ListPlugins(ctx, caller.Account, strings.TrimSpace(req.InstanceID))
+		instID := strings.TrimSpace(req.InstanceID)
+		forceRefresh := paramBool(req.Params, "force_refresh", false)
+		items, lErr := s.Extensions.ListPluginsWithOptions(ctx, caller.Account, instID, forceRefresh)
 		if lErr != nil {
 			if errors.Is(lErr, store.ErrNotFound) {
 				return ipc.Response{OK: false, Code: 404, Error: "WordPress instance not found"}
 			}
 			return ipc.Response{OK: false, Code: 500, Error: lErr.Error()}
 		}
-		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"plugins": items}}
+		updatedInst, _ := s.Store.GetInstanceForOwner(instID, caller.Username)
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"plugins": items, "instance": updatedInst}}
 
 	case "list_themes":
 		if s.Extensions == nil {
 			return ipc.Response{OK: false, Code: 503, Error: "extensions manager is not configured"}
 		}
-		items, lErr := s.Extensions.ListThemes(ctx, caller.Account, strings.TrimSpace(req.InstanceID))
+		instID := strings.TrimSpace(req.InstanceID)
+		forceRefresh := paramBool(req.Params, "force_refresh", false)
+		items, lErr := s.Extensions.ListThemesWithOptions(ctx, caller.Account, instID, forceRefresh)
 		if lErr != nil {
 			if errors.Is(lErr, store.ErrNotFound) {
 				return ipc.Response{OK: false, Code: 404, Error: "WordPress instance not found"}
 			}
 			return ipc.Response{OK: false, Code: 500, Error: lErr.Error()}
 		}
-		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"themes": items}}
+		updatedInst, _ := s.Store.GetInstanceForOwner(instID, caller.Username)
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"themes": items, "instance": updatedInst}}
 
 	case "list_all_plugins":
 		if s.Extensions == nil {
 			return ipc.Response{OK: false, Code: 503, Error: "extensions manager is not configured"}
 		}
-		groups, aErr := s.Extensions.AggregateAccountExtensions(ctx, caller.Account, false)
+		forceRefresh := paramBool(req.Params, "force_refresh", false)
+		groups, aErr := s.Extensions.AggregateAccountExtensionsWithOptions(ctx, caller.Account, false, forceRefresh)
 		if aErr != nil {
 			return ipc.Response{OK: false, Code: 500, Error: aErr.Error()}
 		}
-		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"plugins": groups}}
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"plugins": groups, "instances": s.Store.ListInstancesByOwner(caller.Username)}}
 
 	case "list_all_themes":
 		if s.Extensions == nil {
 			return ipc.Response{OK: false, Code: 503, Error: "extensions manager is not configured"}
 		}
-		groups, aErr := s.Extensions.AggregateAccountExtensions(ctx, caller.Account, true)
+		forceRefresh := paramBool(req.Params, "force_refresh", false)
+		groups, aErr := s.Extensions.AggregateAccountExtensionsWithOptions(ctx, caller.Account, true, forceRefresh)
 		if aErr != nil {
 			return ipc.Response{OK: false, Code: 500, Error: aErr.Error()}
 		}
-		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"themes": groups}}
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"themes": groups, "instances": s.Store.ListInstancesByOwner(caller.Username)}}
 
 	case "search_wporg":
 		if s.Extensions == nil {
@@ -940,7 +951,8 @@ func (s *Service) dispatchExtensionAction(
 	if isTheme {
 		key = "themes"
 	}
-	return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{key: items}}
+	updatedInst, _ := s.Store.GetInstance(instanceID)
+	return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{key: items, "instance": updatedInst}}
 }
 
 func (s *Service) dispatchSmartUpdate(

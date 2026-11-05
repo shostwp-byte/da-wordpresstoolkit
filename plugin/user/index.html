@@ -1397,6 +1397,13 @@ cat <<'DAWPTK_USER_HTML'
         if (prevRunning && !nowRunning) {
           toast('Tác vụ nền đã hoàn tất!', 'ok');
           loadBootstrap(true);
+          S.instances.forEach(function (inst) {
+            var sub = S.subTabs[inst.id];
+            if (sub === 'plugins') loadSiteExtensions(inst.id, false, false);
+            else if (sub === 'themes') loadSiteExtensions(inst.id, true, false);
+          });
+          if (S.globalTab === 'plugins') loadGlobalExtensions(false, false);
+          if (S.globalTab === 'themes') loadGlobalExtensions(true, false);
         }
         if (nowRunning) {
           clearTimeout(S.jobTimer);
@@ -1420,6 +1427,19 @@ cat <<'DAWPTK_USER_HTML'
         S.loading = false;
         renderApp();
         renderDrawer();
+        if (!silent) {
+          var preloaded = 0;
+          for (var i = 0; i < S.instances.length && preloaded < 5; i++) {
+            var inst = S.instances[i];
+            if (!S.collapsedIds[inst.id]) {
+              preloaded++;
+              loadSiteExtensions(inst.id, false, false);
+              if (S.subTabs[inst.id] === 'themes' || !inst.active_theme) {
+                loadSiteExtensions(inst.id, true, false);
+              }
+            }
+          }
+        }
         if (hasRunningJobs()) {
           clearTimeout(S.jobTimer);
           S.jobTimer = setTimeout(pollJobsNow, 1500);
@@ -1758,17 +1778,23 @@ cat <<'DAWPTK_USER_HTML'
       var id = inst.id;
       var items = isTheme ? S.siteThemes[id] : S.sitePlugins[id];
       var kindLabel = isTheme ? 'Theme' : 'Plugin';
+      var outdatedCount = 0;
+      if (Array.isArray(items)) {
+        for (var u = 0; u < items.length; u++) {
+          if (items[u].update_available) outdatedCount++;
+        }
+      }
 
       var h = '<div class="wptk-tools-strip" style="justify-content:space-between;">';
       h += '  <div style="display:flex;gap:8px;flex-wrap:wrap;">';
-      h += '    <button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="smart-update-all-ext" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '">🛡 Smart Safe Update ' + kindLabel + 's</button>';
+      h += '    <button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="smart-update-all-ext" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '">🛡 Smart Safe Update ' + kindLabel + 's' + (outdatedCount > 0 ? ' (' + outdatedCount + ')' : '') + '</button>';
       h += '    <button type="button" class="wptk-btn wptk-btn-sm" data-act="open-wporg-install" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '">' + IC.plus + ' Cài từ WordPress.org</button>';
       h += '    <button type="button" class="wptk-btn wptk-btn-sm" data-act="open-zip-install" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '">⬆ Tải lên gói .zip</button>';
       if (!isTheme) {
         h += '  <button type="button" class="wptk-btn wptk-btn-sm" data-act="open-apply-set" data-id="' + esc(id) + '">📦 Áp dụng Bộ Set</button>';
       }
       h += '  </div>';
-      h += '  <button type="button" class="wptk-btn wptk-btn-sm" data-act="reload-site-ext" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '">' + IC.refresh + '</button>';
+      h += '  <button type="button" class="wptk-btn wptk-btn-sm" data-act="reload-site-ext" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '" title="Kiểm tra trạng thái &amp; phiên bản mới trực tiếp từ WordPress.org">' + IC.refresh + ' Kiểm tra cập nhật</button>';
       h += '</div>';
 
       if (!items) {
@@ -1783,7 +1809,7 @@ cat <<'DAWPTK_USER_HTML'
       h += '</tr></thead><tbody>';
       for (var i = 0; i < items.length; i++) {
         var it = items[i];
-        var isActive = it.status === 'active' || it.status === 'parent';
+        var isActive = it.status === 'active' || it.status === 'active-network' || it.status === 'parent';
         var vulns = Array.isArray(it.vulns) ? it.vulns : [];
         h += '<tr>';
         h += '<td><strong>' + esc(it.title || it.slug) + '</strong><div style="font-size:11px;color:var(--muted);">' + esc(it.slug) + '</div></td>';
@@ -1792,11 +1818,16 @@ cat <<'DAWPTK_USER_HTML'
           h += isActive ? '<span class="wptk-pill wptk-pill-green">Đang dùng (' + esc(it.status) + ')</span>' : '<button type="button" class="wptk-btn wptk-btn-sm" data-act="ext-op" data-id="' + esc(id) + '" data-kind="theme" data-op="activate" data-slug="' + esc(it.slug) + '">Kích hoạt</button>';
         } else if (it.status === 'must-use' || it.status === 'dropin') {
           h += '<span class="wptk-pill wptk-pill-slate">' + esc(it.status) + '</span>';
+        } else if (it.status === 'active-network') {
+          h += '<span class="wptk-pill wptk-pill-green">Network Active</span>';
         } else {
           h += '<label class="wptk-switch"><input type="checkbox" data-act="ext-op" data-id="' + esc(id) + '" data-kind="plugin" data-op="' + (isActive ? 'deactivate' : 'activate') + '" data-slug="' + esc(it.slug) + '" ' + (isActive ? 'checked' : '') + ' /><span class="wptk-slider"></span></label>';
+          if (it.status === 'unknown') {
+            h += ' <span style="font-size:11px;color:var(--muted);">Chưa rõ DB</span>';
+          }
         }
         h += '</td>';
-        h += '<td><strong>' + esc(it.version) + '</strong>';
+        h += '<td><strong>' + esc(it.version || '—') + '</strong>';
         if (it.update_available) {
           h += ' <button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" style="margin-left:6px;" data-act="smart-update-single" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '" data-slug="' + esc(it.slug) + '">→ ' + esc(it.update_version || 'Update') + '</button>';
         }
@@ -1804,7 +1835,7 @@ cat <<'DAWPTK_USER_HTML'
         h += '<td><label class="wptk-switch"><input type="checkbox" data-act="ext-op" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '" data-op="' + (it.auto_update ? 'autoupdate_off' : 'autoupdate_on') + '" data-slug="' + esc(it.slug) + '" ' + (it.auto_update ? 'checked' : '') + ' /><span class="wptk-slider"></span></label></td>';
         h += '<td>' + (vulns.length > 0 ? '<button type="button" class="wptk-pill wptk-pill-red" style="cursor:pointer" data-act="open-cve-modal" data-id="' + esc(id) + '" data-slug="' + esc(it.slug) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '">⚠ ' + vulns.length + ' CVE</button>' : '<span class="wptk-pill wptk-pill-green">An toàn</span>') + '</td>';
         h += '<td style="text-align:right">';
-        if (!isActive && it.status !== 'must-use' && it.status !== 'dropin') {
+        if (!isActive && it.status !== 'must-use' && it.status !== 'dropin' && it.status !== 'unknown') {
           h += '<button type="button" class="wptk-btn wptk-btn-sm wptk-btn-danger" data-act="ext-op" data-id="' + esc(id) + '" data-kind="' + (isTheme ? 'theme' : 'plugin') + '" data-op="delete" data-slug="' + esc(it.slug) + '">' + IC.trash + '</button>';
         }
         h += '</td></tr>';
@@ -2015,7 +2046,8 @@ cat <<'DAWPTK_USER_HTML'
       for (var i = 0; i < filtered.length; i++) {
         var g = filtered[i];
         var siteChips = (g.sites || []).map(function (sr) {
-          return '<span class="wptk-pill ' + (sr.update_available ? 'wptk-pill-amber' : 'wptk-pill-slate') + '" style="margin:2px;">' + esc(sr.domain + (sr.sub_path || '')) + ' (' + esc(sr.version) + ')</span>';
+          var verLbl = esc(sr.version || '') + (sr.update_available && sr.update_version ? ' → ' + esc(sr.update_version) : '');
+          return '<span class="wptk-pill ' + (sr.update_available ? 'wptk-pill-amber' : 'wptk-pill-slate') + '" style="margin:2px;">' + esc(sr.domain + (sr.sub_path || '')) + ' (' + verLbl + ')</span>';
         }).join(' ');
         h += '<tr>';
         h += '<td><strong>' + esc(g.title || g.slug) + '</strong><div style="font-size:11px;color:var(--muted);">' + esc(g.slug) + (g.latest_available ? ' • Mới nhất: ' + esc(g.latest_available) : '') + '</div></td>';
@@ -2100,11 +2132,19 @@ cat <<'DAWPTK_USER_HTML'
     }
 
     /* Data Loaders for Lazy Sub-Tabs & Global Matrices */
-    function loadSiteExtensions(id, isTheme) {
-      return api(isTheme ? 'list_themes' : 'list_plugins', { instance_id: id }).then(function (res) {
-        if (isTheme) S.siteThemes[id] = (res.data && res.data.themes) || [];
-        else S.sitePlugins[id] = (res.data && res.data.plugins) || [];
+    function loadSiteExtensions(id, isTheme, forceRefresh) {
+      var opts = { instance_id: id };
+      if (forceRefresh) {
+        opts.forcePost = true;
+        opts.params = { force_refresh: true };
+      }
+      return api(isTheme ? 'list_themes' : 'list_plugins', opts).then(function (res) {
+        var d = res.data || {};
+        if (isTheme) S.siteThemes[id] = d.themes || [];
+        else S.sitePlugins[id] = d.plugins || [];
+        if (d.instance && d.instance.id) upsertLocalInstance(d.instance);
         renderApp();
+        return res;
       }).catch(function (e) { toast(e.message, 'err'); });
     }
 
@@ -2134,11 +2174,15 @@ cat <<'DAWPTK_USER_HTML'
       }).catch(function (e) { toast(e.message, 'err'); });
     }
 
-    function loadGlobalExtensions(isTheme) {
-      return api(isTheme ? 'list_all_themes' : 'list_all_plugins').then(function (res) {
-        if (isTheme) S.globalThemes = (res.data && res.data.themes) || [];
-        else S.globalPlugins = (res.data && res.data.plugins) || [];
+    function loadGlobalExtensions(isTheme, forceRefresh) {
+      var opts = forceRefresh ? { forcePost: true, params: { force_refresh: true } } : {};
+      return api(isTheme ? 'list_all_themes' : 'list_all_plugins', opts).then(function (res) {
+        var d = res.data || {};
+        if (isTheme) S.globalThemes = d.themes || [];
+        else S.globalPlugins = d.plugins || [];
+        if (Array.isArray(d.instances)) S.instances = d.instances;
         renderApp();
+        return res;
       }).catch(function (e) { toast(e.message, 'err'); });
     }
 
@@ -2679,10 +2723,10 @@ cat <<'DAWPTK_USER_HTML'
 
       if (act === 'refresh-instance' && inst) {
         loadSiteTools(id);
-        if (S.subTabs[id] === 'plugins') loadSiteExtensions(id, false);
-        if (S.subTabs[id] === 'themes') loadSiteExtensions(id, true);
+        loadSiteExtensions(id, false, true);
+        if (S.subTabs[id] === 'themes') loadSiteExtensions(id, true, true);
         if (S.subTabs[id] === 'security') loadSiteSecurity(id);
-        toast('Đã cập nhật trạng thái ' + inst.domain, 'ok');
+        toast('Đang làm mới trạng thái & kiểm tra cập nhật cho ' + inst.domain + '...', 'ok');
         return;
       }
 
@@ -2737,7 +2781,14 @@ cat <<'DAWPTK_USER_HTML'
       }
 
       /* Plugins / Themes Actions */
-      if (act === 'reload-site-ext' && inst) { loadSiteExtensions(id, target.getAttribute('data-kind') === 'theme'); return; }
+      if (act === 'reload-site-ext' && inst) {
+        var isThm = target.getAttribute('data-kind') === 'theme';
+        toast('Đang kiểm tra trạng thái & phiên bản mới từ WordPress.org...');
+        loadSiteExtensions(id, isThm, true).then(function (r) {
+          if (r) toast('Đã cập nhật danh sách & phiên bản mới nhất!', 'ok');
+        });
+        return;
+      }
       if (act === 'open-wporg-install' && inst) { showWPOrgModal(inst, target.getAttribute('data-kind') || 'plugin'); return; }
       if (act === 'open-zip-install' && inst) { showZipUploadModal(inst, target.getAttribute('data-kind') || 'plugin'); return; }
 
@@ -2749,10 +2800,13 @@ cat <<'DAWPTK_USER_HTML'
         api(kind === 'theme' ? 'manage_theme' : 'manage_plugin', {
           instance_id: id,
           params: { operation: op, slug: slug }
-        }).then(function () {
+        }).then(function (res) {
+          var d = res.data || {};
+          if (kind === 'theme' && Array.isArray(d.themes)) S.siteThemes[id] = d.themes;
+          if (kind !== 'theme' && Array.isArray(d.plugins)) S.sitePlugins[id] = d.plugins;
+          if (d.instance && d.instance.id) upsertLocalInstance(d.instance);
+          renderApp();
           toast('Đã thực thi ' + op + ' cho ' + slug, 'ok');
-          loadSiteExtensions(id, kind === 'theme');
-          loadBootstrap(true);
         }).catch(function (e) { toast(e.message, 'err'); });
         return;
       }
@@ -2879,7 +2933,13 @@ cat <<'DAWPTK_USER_HTML'
 
       /* Global Extensions & Sets & Bulk Toolbar Actions */
       if (act === 'set-ext-filter') { S.extFilter = target.getAttribute('data-filter') || 'all'; renderApp(); return; }
-      if (act === 'reload-global-ext') { loadGlobalExtensions(target.getAttribute('data-kind') === 'theme'); return; }
+      if (act === 'reload-global-ext') {
+        toast('Đang quét lại & kiểm tra phiên bản mới từ WordPress.org...');
+        loadGlobalExtensions(target.getAttribute('data-kind') === 'theme', true).then(function (r) {
+          if (r) toast('Đã đồng bộ phiên bản mới hoàn tất!', 'ok');
+        });
+        return;
+      }
       if (act === 'mass-update-slug') {
         var mKind = target.getAttribute('data-kind');
         var mSlug = target.getAttribute('data-slug');
@@ -3085,11 +3145,14 @@ cat <<'DAWPTK_USER_HTML'
         api(eKind === 'theme' ? 'manage_theme' : 'manage_plugin', {
           instance_id: id,
           params: { operation: eOp, slug: eSlug }
-        }).then(function () {
+        }).then(function (res) {
+          var d = res.data || {};
+          if (eKind === 'theme' && Array.isArray(d.themes)) S.siteThemes[id] = d.themes;
+          if (eKind !== 'theme' && Array.isArray(d.plugins)) S.sitePlugins[id] = d.plugins;
+          if (d.instance && d.instance.id) upsertLocalInstance(d.instance);
+          renderApp();
           toast('Đã cập nhật ' + eSlug, 'ok');
-          loadSiteExtensions(id, eKind === 'theme');
-          loadBootstrap(true);
-        }).catch(function (e) { toast(e.message, 'err'); loadSiteExtensions(id, eKind === 'theme'); });
+        }).catch(function (e) { toast(e.message, 'err'); loadSiteExtensions(id, eKind === 'theme', false); });
       }
     });
 

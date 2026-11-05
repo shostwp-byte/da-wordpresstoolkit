@@ -67,8 +67,8 @@ if [[ -f "${BUNDLE_ROOT}/bin/da-wptoolkit" ]]; then
   SRC_BIN="${BUNDLE_ROOT}/bin/da-wptoolkit"
 elif [[ -f "${BUNDLE_ROOT}/dist/da-wptoolkit-linux-${TARGET_ARCH}" ]]; then
   SRC_BIN="${BUNDLE_ROOT}/dist/da-wptoolkit-linux-${TARGET_ARCH}"
-elif [[ "$HAS_LOCAL_BUNDLE" -eq 1 && -n "$LOCAL_CONF_TAG" && "${DA_WPTK_FORCE_DOWNLOAD:-0}" != "1" && -x "$BIN_DST" ]] && "$BIN_DST" version 2>/dev/null | grep -qF " ${LOCAL_CONF_TAG} "; then
-  echo "[1/7] Reusing installed binary ${BIN_DST} (${LOCAL_CONF_TAG}) & syncing local repository files..."
+elif [[ "${DA_WPTK_SKIP_DOWNLOAD:-0}" == "1" && -x "$BIN_DST" ]]; then
+  echo "[1/7] Reusing installed binary ${BIN_DST} (DA_WPTK_SKIP_DOWNLOAD=1)..."
   SRC_BIN="$BIN_DST"
 else
   TMP_DL="$(mktemp -d /tmp/dawptk-install.XXXXXX)"
@@ -88,13 +88,20 @@ else
   else
     DL_BASE="https://github.com/${REPO}/releases/download/${RESOLVED_VER}"
   fi
-  curl -fsSL --retry 3 --retry-delay 2 "${DL_BASE}/${TARBALL}" -o "${TMP_DL}/${TARBALL}"
-  curl -fsSL --retry 3 --retry-delay 2 "${DL_BASE}/checksums.txt" -o "${TMP_DL}/checksums.txt"
-  (cd "$TMP_DL" && grep "  ${TARBALL}\$" checksums.txt | sha256sum -c -)
-  tar -xzf "${TMP_DL}/${TARBALL}" -C "$TMP_DL"
-  SRC_BIN="${TMP_DL}/bin/da-wptoolkit"
-  if [[ "$HAS_LOCAL_BUNDLE" -eq 0 ]]; then
-    BUNDLE_ROOT="$TMP_DL"
+  if curl -fsSL --retry 3 --retry-delay 2 "${DL_BASE}/${TARBALL}" -o "${TMP_DL}/${TARBALL}" && \
+     curl -fsSL --retry 3 --retry-delay 2 "${DL_BASE}/checksums.txt" -o "${TMP_DL}/checksums.txt"; then
+    (cd "$TMP_DL" && grep "  ${TARBALL}\$" checksums.txt | sha256sum -c -)
+    tar -xzf "${TMP_DL}/${TARBALL}" -C "$TMP_DL"
+    SRC_BIN="${TMP_DL}/bin/da-wptoolkit"
+    if [[ "$HAS_LOCAL_BUNDLE" -eq 0 ]]; then
+      BUNDLE_ROOT="$TMP_DL"
+    fi
+  elif [[ "$HAS_LOCAL_BUNDLE" -eq 1 && -x "$BIN_DST" ]]; then
+    echo "  -> Warning: GitHub release download failed; reusing existing ${BIN_DST} & syncing local repository files..."
+    SRC_BIN="$BIN_DST"
+  else
+    echo "ERROR: Failed to download ${DL_BASE}/${TARBALL}" >&2
+    exit 1
   fi
 fi
 

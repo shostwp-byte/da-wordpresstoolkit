@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -55,6 +56,7 @@ type Runner struct {
 	NiceBin     string
 	IoniceBin   string
 	CoreCache   string
+	MinUID      uint32
 	ExecCommand CommandExecutor
 }
 
@@ -65,9 +67,16 @@ func NewRunner(wpcliPath, coreCacheDir string) *Runner {
 	if coreCacheDir == "" {
 		coreCacheDir = "/var/cache/da-wptoolkit/wp-core"
 	}
+	minUID := uint32(500)
+	if raw := strings.TrimSpace(os.Getenv("DA_WPTK_MIN_UID")); raw != "" {
+		if parsed, err := strconv.ParseUint(raw, 10, 32); err == nil && parsed >= 100 && parsed < 65534 {
+			minUID = uint32(parsed)
+		}
+	}
 	r := &Runner{
 		WPCLIPath: wpcliPath,
 		CoreCache: coreCacheDir,
+		MinUID:    minUID,
 	}
 	if isFile("/usr/bin/nice") {
 		r.NiceBin = "/usr/bin/nice"
@@ -81,7 +90,11 @@ func NewRunner(wpcliPath, coreCacheDir string) *Runner {
 
 // Run validates DocRoot against symlink escape, drops privileges to Account.UID/GID, and executes WP-CLI.
 func (r *Runner) Run(ctx context.Context, opts CallOptions) (string, error) {
-	if opts.Account.UID < 1000 || opts.Account.UID >= 65534 {
+	minUID := r.MinUID
+	if minUID == 0 {
+		minUID = 500
+	}
+	if opts.Account.UID == 0 || opts.Account.UID < minUID || opts.Account.UID >= 65534 {
 		return "", fmt.Errorf("refusing to run WP-CLI under unsafe UID %d", opts.Account.UID)
 	}
 	if opts.Account.HomeDir == "" {
@@ -110,27 +123,27 @@ func (r *Runner) Run(ctx context.Context, opts CallOptions) (string, error) {
 		phpBin = "/usr/local/bin/php"
 	}
 
-	openBaseDir := strings.Join([]string{
-		filepath.Clean(opts.Account.HomeDir),
-		"/tmp",
-		"/var/lib/mysql",
-		"/run/mysqld",
-		r.WPCLIPath,
-		r.CoreCache,
-		"/usr/local",
-		"/usr/share",
-	}, ":")
-
 	phpAndWPArgs := []string{
 		phpBin,
 		"-d", "disable_functions=",
+		"-d", "open_basedir=",
+		"-d", "display_errors=0",
+		"-d", "log_errors=0",
+		"-d", "error_reporting=0",
 		"-d", "memory_limit=512M",
 		"-d", "max_execution_time=300",
-		"-d", "open_basedir=" + openBaseDir,
-		r.WPCLIPath,
-		"--path=" + verifiedDocRoot,
-		"--no-color",
 	}
+	if sock := detectMySQLSocket(); sock != "" {
+		phpAndWPArgs = append(phpAndWPArgs,
+			"-d", "mysqli.default_socket="+sock,
+			"-d", "pdo_mysql.default_socket="+sock,
+		)
+	}
+	phpAndWPArgs = append(phpAndWPArgs,
+		r.WPCLIPath,
+		"--path="+verifiedDocRoot,
+		"--no-color",
+	)
 	if opts.SkipPlugins {
 		phpAndWPArgs = append(phpAndWPArgs, "--skip-plugins")
 	}
@@ -235,4 +248,20 @@ func (l *limitedBuffer) Write(p []byte) (int, error) {
 func isFile(path string) bool {
 	st, err := os.Stat(path)
 	return err == nil && !st.IsDir()
+}
+
+func detectMySQLSocket() string {
+	for _, candidate := range []string{
+		"/var/lib/mysql/mysql.sock",
+		"/tmp/mysql.sock",
+		"/run/mysqld/mysqld.sock",
+		"/var/run/mysqld/mysqld.sock",
+		"/usr/local/mysql/data/mysql.sock",
+		"/home/mysql/mysql.sock",
+	} {
+		if st, err := os.Stat(candidate); err == nil && !st.IsDir() {
+			return candidate
+		}
+	}
+	return ""
 }

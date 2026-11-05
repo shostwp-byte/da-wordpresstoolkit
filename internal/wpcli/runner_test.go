@@ -31,13 +31,21 @@ func TestRunnerEnforcesUIDDropDomainPHPAndBlocksUnsafeFlags(t *testing.T) {
 	acct := dausers.Account{Username: "reno26", UID: 1005, GID: 1005, HomeDir: homeDir}
 	phpSel := daphp.Selection{Slot: 3, Version: "8.4", BinaryPath: "/usr/local/php84/bin/php"}
 
-	// 1. Refuse root UID 0 or nobody 65534
+	// 1. Refuse root UID 0 or nobody 65534, while allowing DirectAdmin hosting UIDs >= 500
 	if _, err := runner.Run(context.Background(), CallOptions{
 		Account: dausers.Account{Username: "root", UID: 0, HomeDir: homeDir},
 		DocRoot: docRoot,
 		Args:    []string{"core", "version"},
 	}); err == nil {
 		t.Fatal("expected UID 0 WP-CLI execution to be refused")
+	}
+	if _, err := runner.Run(context.Background(), CallOptions{
+		Account: dausers.Account{Username: "nusong24", UID: 505, GID: 505, HomeDir: homeDir},
+		DocRoot: docRoot,
+		PHP:     phpSel,
+		Args:    []string{"core", "version"},
+	}); err != nil {
+		t.Fatalf("expected DirectAdmin account UID 505 to be permitted, got: %v", err)
 	}
 
 	// 2. Refuse forbidden --allow-root or --exec flags

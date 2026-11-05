@@ -234,6 +234,7 @@ func runServe(args []string) error {
 
 	lifeManager := lifecycle.NewManager(domResolver, dbManager, wpRunner, st, pol, coreCacheDir)
 	extManager := extensions.NewManager(domResolver, wpRunner, st, vdb)
+	extManager.LiveUpdateCheck = getenvOr("DA_WPTK_LIVE_WPORG_CHECK", "1") != "0"
 	smartEngine := smartupdate.NewEngine(domResolver, wpRunner, extManager, st, stagingBaseDir)
 
 	wsAdapter := webserver.NewAdapter(optionsConf, nginxSnippetDir)

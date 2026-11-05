@@ -70,6 +70,12 @@ func (r *Resolver) Resolve(phpSelect string) Selection {
 	if isExecutableFile(primaryBin) {
 		return Selection{Slot: slot, Version: ver, BinaryPath: primaryBin}
 	}
+	if r.UsrLocalRoot == DefaultUsrLocalRoot {
+		altBin := filepath.Join("/opt/alt", "php"+compact, "usr", "bin", "php")
+		if isExecutableFile(altBin) {
+			return Selection{Slot: slot, Version: ver, BinaryPath: altBin}
+		}
+	}
 
 	// Fallback if options.conf slot binary is not yet compiled or in test environment
 	for _, fb := range r.FallbackBins {

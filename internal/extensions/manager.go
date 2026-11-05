@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/shostwp-byte/da-wptoolkits/internal/config"
 	"github.com/shostwp-byte/da-wptoolkits/internal/dadomains"
@@ -85,14 +87,28 @@ type ActionRequest struct {
 	ZipBase64 string   `json:"zip_base64,omitempty"`
 }
 
+type instanceExtUpdateCounts struct {
+	pluginUpdates int
+	themeUpdates  int
+	hasPlugins    bool
+	hasThemes     bool
+}
+
 // Manager coordinates plugin/theme listing, WSOD rescue toggles, WP.org search, .zip installs, sets, and CVE scans.
 type Manager struct {
-	Domains      *dadomains.Resolver
-	WPCLI        *wpcli.Runner
-	Store        *store.Store
-	Vulns        *vulndb.DB
-	WPOrgAPIBase string
-	HTTPClient   *http.Client
+	Domains         *dadomains.Resolver
+	WPCLI           *wpcli.Runner
+	Store           *store.Store
+	Vulns           *vulndb.DB
+	WPOrgAPIBase    string
+	HTTPClient      *http.Client
+	LiveUpdateCheck bool
+
+	cacheMu      sync.RWMutex
+	versionCache map[string]wpOrgVersionCacheEntry
+
+	countsMu  sync.Mutex
+	extCounts map[string]instanceExtUpdateCounts
 }
 
 func NewManager(
@@ -107,24 +123,61 @@ func NewManager(
 		Store:        st,
 		Vulns:        vulns,
 		WPOrgAPIBase: DefaultWPOrgAPIBase,
+		versionCache: make(map[string]wpOrgVersionCacheEntry),
+		extCounts:    make(map[string]instanceExtUpdateCounts),
 	}
 }
 
+// flexString unmarshals WP-CLI JSON fields that may be emitted as string, bool (`false` when commercial plugins
+// populate `new_version => false`), number, null, or nested metadata without failing the entire array decode.
+type flexString string
+
+func (f *flexString) UnmarshalJSON(b []byte) error {
+	trimmed := strings.TrimSpace(string(b))
+	if trimmed == "" || trimmed == "null" {
+		*f = ""
+		return nil
+	}
+	if trimmed[0] == '"' {
+		var s string
+		if err := json.Unmarshal(b, &s); err != nil {
+			return err
+		}
+		*f = flexString(s)
+		return nil
+	}
+	if trimmed == "true" || trimmed == "false" {
+		*f = flexString(trimmed)
+		return nil
+	}
+	if trimmed[0] == '{' || trimmed[0] == '[' {
+		*f = ""
+		return nil
+	}
+	*f = flexString(trimmed)
+	return nil
+}
+
 type wpcliExtRow struct {
-	Name          string `json:"name"`
-	Title         string `json:"title"`
-	Status        string `json:"status"`
-	Update        string `json:"update"`
-	Version       string `json:"version"`
-	UpdateVersion string `json:"update_version"`
-	AutoUpdate    string `json:"auto_update"`
-	AutoUpdates   string `json:"auto_updates"`
-	Author        string `json:"author"`
+	Name          flexString `json:"name"`
+	Title         flexString `json:"title"`
+	Status        flexString `json:"status"`
+	Update        flexString `json:"update"`
+	Version       flexString `json:"version"`
+	UpdateVersion flexString `json:"update_version"`
+	AutoUpdate    flexString `json:"auto_update"`
+	AutoUpdates   flexString `json:"auto_updates"`
+	Author        flexString `json:"author"`
 }
 
 // ListPlugins lists all plugins of an instance (using --skip-plugins --skip-themes so WSOD sites still work!),
-// enriches them with static titles & Wordfence CVEs, and refreshes instance summary counters in Store.
+// enriches them with static titles, WordPress.org latest versions & Wordfence CVEs, and refreshes Store counters.
 func (m *Manager) ListPlugins(ctx context.Context, acct dausers.Account, instanceID string) ([]ExtensionItem, error) {
+	return m.ListPluginsWithOptions(ctx, acct, instanceID, false)
+}
+
+// ListPluginsWithOptions lists all plugins of an instance and optionally forces a live transient + WordPress.org refresh.
+func (m *Manager) ListPluginsWithOptions(ctx context.Context, acct dausers.Account, instanceID string, forceRefresh bool) ([]ExtensionItem, error) {
 	inst, guard, verifiedRoot, phpSel, err := m.resolveInstanceContext(acct, instanceID)
 	if err != nil {
 		return nil, err
@@ -134,6 +187,36 @@ func (m *Manager) ListPlugins(ctx context.Context, acct dausers.Account, instanc
 	var items []ExtensionItem
 
 	if m.WPCLI != nil {
+		if forceRefresh {
+			_, _ = m.WPCLI.Run(ctx, wpcli.CallOptions{
+				Account:     acct,
+				DocRoot:     verifiedRoot,
+				PHP:         phpSel,
+				Args:        []string{"transient", "delete", "update_plugins", "--network"},
+				SkipPlugins: true,
+				SkipThemes:  true,
+				Timeout:     10 * time.Second,
+			})
+			_, _ = m.WPCLI.Run(ctx, wpcli.CallOptions{
+				Account:     acct,
+				DocRoot:     verifiedRoot,
+				PHP:         phpSel,
+				Args:        []string{"transient", "delete", "update_plugins"},
+				SkipPlugins: true,
+				SkipThemes:  true,
+				Timeout:     10 * time.Second,
+			})
+			_, _ = m.WPCLI.Run(ctx, wpcli.CallOptions{
+				Account:     acct,
+				DocRoot:     verifiedRoot,
+				PHP:         phpSel,
+				Args:        []string{"plugin", "update", "--all", "--dry-run"},
+				SkipPlugins: false,
+				SkipThemes:  true,
+				Timeout:     15 * time.Second,
+			})
+		}
+
 		stdout, cErr := m.WPCLI.Run(ctx, wpcli.CallOptions{
 			Account:     acct,
 			DocRoot:     verifiedRoot,
@@ -143,21 +226,34 @@ func (m *Manager) ListPlugins(ctx context.Context, acct dausers.Account, instanc
 			SkipThemes:  true,
 		})
 		if cErr == nil {
-			items, _ = parseWPCLIListJSON(stdout, staticMap, m.Vulns, true)
+			var pErr error
+			items, pErr = parseWPCLIListJSON(stdout, staticMap, m.Vulns, true)
+			if pErr != nil {
+				log.Printf("warning: parse wp plugin list JSON on %s (%s): %v", inst.Domain, verifiedRoot, pErr)
+			}
+		} else {
+			log.Printf("warning: wp plugin list on %s (%s): %v", inst.Domain, verifiedRoot, cErr)
 		}
 	}
 
 	if items == nil {
-		// Resilient zero-DB fallback using static headers
+		// Resilient fallback using static headers + best-effort option lookup
 		items = buildStaticFallbackItems(staticMap, m.Vulns, true)
+		m.enrichFallbackPluginStates(ctx, acct, verifiedRoot, phpSel, items)
 	}
 
+	m.EnrichWithWPOrgLatestVersions(ctx, items, true, forceRefresh)
 	m.syncInstancePluginStats(inst, items)
 	return items, nil
 }
 
 // ListThemes lists all themes of an instance (WSOD-safe), enriches with CVEs, and updates ActiveTheme & ThemeCount.
 func (m *Manager) ListThemes(ctx context.Context, acct dausers.Account, instanceID string) ([]ExtensionItem, error) {
+	return m.ListThemesWithOptions(ctx, acct, instanceID, false)
+}
+
+// ListThemesWithOptions lists all themes of an instance and optionally forces a live transient + WordPress.org refresh.
+func (m *Manager) ListThemesWithOptions(ctx context.Context, acct dausers.Account, instanceID string, forceRefresh bool) ([]ExtensionItem, error) {
 	inst, guard, verifiedRoot, phpSel, err := m.resolveInstanceContext(acct, instanceID)
 	if err != nil {
 		return nil, err
@@ -167,6 +263,36 @@ func (m *Manager) ListThemes(ctx context.Context, acct dausers.Account, instance
 	var items []ExtensionItem
 
 	if m.WPCLI != nil {
+		if forceRefresh {
+			_, _ = m.WPCLI.Run(ctx, wpcli.CallOptions{
+				Account:     acct,
+				DocRoot:     verifiedRoot,
+				PHP:         phpSel,
+				Args:        []string{"transient", "delete", "update_themes", "--network"},
+				SkipPlugins: true,
+				SkipThemes:  true,
+				Timeout:     10 * time.Second,
+			})
+			_, _ = m.WPCLI.Run(ctx, wpcli.CallOptions{
+				Account:     acct,
+				DocRoot:     verifiedRoot,
+				PHP:         phpSel,
+				Args:        []string{"transient", "delete", "update_themes"},
+				SkipPlugins: true,
+				SkipThemes:  true,
+				Timeout:     10 * time.Second,
+			})
+			_, _ = m.WPCLI.Run(ctx, wpcli.CallOptions{
+				Account:     acct,
+				DocRoot:     verifiedRoot,
+				PHP:         phpSel,
+				Args:        []string{"theme", "update", "--all", "--dry-run"},
+				SkipPlugins: true,
+				SkipThemes:  false,
+				Timeout:     15 * time.Second,
+			})
+		}
+
 		stdout, cErr := m.WPCLI.Run(ctx, wpcli.CallOptions{
 			Account:     acct,
 			DocRoot:     verifiedRoot,
@@ -176,7 +302,13 @@ func (m *Manager) ListThemes(ctx context.Context, acct dausers.Account, instance
 			SkipThemes:  true,
 		})
 		if cErr == nil {
-			items, _ = parseWPCLIListJSON(stdout, staticMap, m.Vulns, false)
+			var pErr error
+			items, pErr = parseWPCLIListJSON(stdout, staticMap, m.Vulns, false)
+			if pErr != nil {
+				log.Printf("warning: parse wp theme list JSON on %s (%s): %v", inst.Domain, verifiedRoot, pErr)
+			}
+		} else {
+			log.Printf("warning: wp theme list on %s (%s): %v", inst.Domain, verifiedRoot, cErr)
 		}
 	}
 
@@ -184,12 +316,18 @@ func (m *Manager) ListThemes(ctx context.Context, acct dausers.Account, instance
 		items = buildStaticFallbackItems(staticMap, m.Vulns, false)
 	}
 
+	m.EnrichWithWPOrgLatestVersions(ctx, items, false, forceRefresh)
 	m.syncInstanceThemeStats(inst, items)
 	return items, nil
 }
 
 // AggregateAccountExtensions builds the cross-site Global Plugins or Themes catalog across all active instances of acct.
 func (m *Manager) AggregateAccountExtensions(ctx context.Context, acct dausers.Account, isThemes bool) ([]GlobalExtensionGroup, error) {
+	return m.AggregateAccountExtensionsWithOptions(ctx, acct, isThemes, false)
+}
+
+// AggregateAccountExtensionsWithOptions builds the cross-site Global Plugins or Themes catalog with optional live refresh.
+func (m *Manager) AggregateAccountExtensionsWithOptions(ctx context.Context, acct dausers.Account, isThemes bool, forceRefresh bool) ([]GlobalExtensionGroup, error) {
 	instances := m.Store.ListInstancesByOwner(acct.Username)
 	if len(instances) == 0 {
 		return []GlobalExtensionGroup{}, nil
@@ -221,9 +359,9 @@ func (m *Manager) AggregateAccountExtensions(ctx context.Context, acct dausers.A
 				var list []ExtensionItem
 				var lErr error
 				if isThemes {
-					list, lErr = m.ListThemes(ctx, acct, inst.ID)
+					list, lErr = m.ListThemesWithOptions(ctx, acct, inst.ID, forceRefresh)
 				} else {
-					list, lErr = m.ListPlugins(ctx, acct, inst.ID)
+					list, lErr = m.ListPluginsWithOptions(ctx, acct, inst.ID, forceRefresh)
 				}
 				if lErr == nil {
 					results[idx] = siteResult{inst: inst, items: list}
@@ -254,7 +392,7 @@ func (m *Manager) AggregateAccountExtensions(ctx context.Context, acct dausers.A
 				grp.Title = it.Title
 			}
 			grp.TotalSites++
-			if it.Status == "active" || it.Status == "parent" {
+			if it.Status == "active" || it.Status == "active-network" || it.Status == "parent" {
 				grp.ActiveSites++
 			}
 			if it.UpdateAvailable {
@@ -625,53 +763,71 @@ func (m *Manager) resolveInstanceContext(acct dausers.Account, instanceID string
 }
 
 func parseWPCLIListJSON(rawJSON string, staticMap map[string]StaticHeader, vdb *vulndb.DB, isPlugin bool) ([]ExtensionItem, error) {
-	trimmed := strings.TrimSpace(rawJSON)
-	idx := strings.IndexByte(trimmed, '[')
-	if idx > 0 {
-		trimmed = trimmed[idx:]
+	jsonSlice, ok := extractJSONArray(rawJSON)
+	if !ok {
+		return nil, errors.New("no JSON array found in WP-CLI output")
 	}
 	var rows []wpcliExtRow
-	if err := json.Unmarshal([]byte(trimmed), &rows); err != nil {
+	if err := json.Unmarshal([]byte(jsonSlice), &rows); err != nil {
 		return nil, err
 	}
 
 	items := make([]ExtensionItem, 0, len(rows))
 	for _, r := range rows {
-		slug := strings.TrimSpace(r.Name)
+		slug := strings.TrimSpace(string(r.Name))
 		if slug == "" {
 			continue
 		}
 		hdr := staticMap[slug]
-		title := strings.TrimSpace(r.Title)
-		if title == "" {
+		title := strings.TrimSpace(string(r.Title))
+		if title == "" || strings.EqualFold(title, "false") || strings.EqualFold(title, "null") {
 			title = hdr.Title
 		}
 		if title == "" {
 			title = slug
 		}
-		author := strings.TrimSpace(r.Author)
-		if author == "" {
+		author := strings.TrimSpace(string(r.Author))
+		if author == "" || strings.EqualFold(author, "false") || strings.EqualFold(author, "null") {
 			author = hdr.Author
 		}
-		autoUpd := strings.EqualFold(r.AutoUpdate, "on") || strings.EqualFold(r.AutoUpdates, "on") || strings.EqualFold(r.AutoUpdate, "true")
-		hasUpd := strings.EqualFold(r.Update, "available") || (r.UpdateVersion != "" && r.UpdateVersion != r.Version)
+		ver := strings.TrimSpace(string(r.Version))
+		if ver == "" || strings.EqualFold(ver, "false") || strings.EqualFold(ver, "null") {
+			ver = hdr.Version
+		}
+		updVer := strings.TrimSpace(string(r.UpdateVersion))
+		if strings.EqualFold(updVer, "false") || strings.EqualFold(updVer, "none") || strings.EqualFold(updVer, "null") {
+			updVer = ""
+		}
+
+		autoUpd := isTruthyWPCLIFlag(string(r.AutoUpdate)) || isTruthyWPCLIFlag(string(r.AutoUpdates))
+		hasUpd := strings.EqualFold(strings.TrimSpace(string(r.Update)), "available") ||
+			(updVer != "" && ver != "" && vulndb.CompareVersions(updVer, ver) > 0) ||
+			(updVer != "" && ver == "")
+		if !hasUpd {
+			updVer = ""
+		}
+
+		status := strings.ToLower(strings.TrimSpace(string(r.Status)))
+		if status == "" || status == "false" || status == "null" {
+			status = "inactive"
+		}
 
 		var vulns []vulndb.MatchedVuln
-		if vdb != nil && r.Version != "" {
+		if vdb != nil && ver != "" {
 			if isPlugin {
-				vulns = vdb.MatchPlugin(slug, r.Version)
+				vulns = vdb.MatchPlugin(slug, ver)
 			} else {
-				vulns = vdb.MatchTheme(slug, r.Version)
+				vulns = vdb.MatchTheme(slug, ver)
 			}
 		}
 
 		items = append(items, ExtensionItem{
 			Slug:            slug,
 			Title:           title,
-			Status:          strings.ToLower(strings.TrimSpace(r.Status)),
-			Version:         strings.TrimSpace(r.Version),
+			Status:          status,
+			Version:         ver,
 			UpdateAvailable: hasUpd,
-			UpdateVersion:   strings.TrimSpace(r.UpdateVersion),
+			UpdateVersion:   updVer,
 			AutoUpdate:      autoUpd,
 			Author:          author,
 			Vulns:           vulns,
@@ -680,6 +836,128 @@ func parseWPCLIListJSON(rawJSON string, staticMap map[string]StaticHeader, vdb *
 
 	sortExtensionItems(items)
 	return items, nil
+}
+
+func extractJSONArray(raw string) (string, bool) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", false
+	}
+	end := strings.LastIndexByte(trimmed, ']')
+	if end < 0 {
+		return "", false
+	}
+	for i := 0; i <= end; i++ {
+		if trimmed[i] != '[' {
+			continue
+		}
+		j := i + 1
+		for j <= end && (trimmed[j] == ' ' || trimmed[j] == '\t' || trimmed[j] == '\r' || trimmed[j] == '\n') {
+			j++
+		}
+		if j <= end && (trimmed[j] == '{' || trimmed[j] == ']') {
+			return trimmed[i : end+1], true
+		}
+	}
+	return "", false
+}
+
+func isTruthyWPCLIFlag(v string) bool {
+	s := strings.ToLower(strings.TrimSpace(v))
+	return s == "on" || s == "true" || s == "1" || s == "yes" || s == "enabled"
+}
+
+func (m *Manager) enrichFallbackPluginStates(
+	ctx context.Context,
+	acct dausers.Account,
+	verifiedRoot string,
+	phpSel daphp.Selection,
+	items []ExtensionItem,
+) {
+	if m.WPCLI == nil || len(items) == 0 {
+		return
+	}
+	out, err := m.WPCLI.Run(ctx, wpcli.CallOptions{
+		Account:     acct,
+		DocRoot:     verifiedRoot,
+		PHP:         phpSel,
+		Args:        []string{"option", "get", "active_plugins", "--format=json"},
+		SkipPlugins: true,
+		SkipThemes:  true,
+		Timeout:     10 * time.Second,
+	})
+	if err != nil {
+		return
+	}
+	arrRaw, ok := extractJSONArrayOrScalarList(out)
+	if !ok {
+		return
+	}
+	var activeEntries []string
+	if json.Unmarshal([]byte(arrRaw), &activeEntries) != nil {
+		return
+	}
+	activeSlugs := make(map[string]struct{}, len(activeEntries))
+	for _, entry := range activeEntries {
+		s := strings.TrimSpace(entry)
+		if idx := strings.IndexByte(s, '/'); idx > 0 {
+			s = s[:idx]
+		} else {
+			s = strings.TrimSuffix(s, ".php")
+		}
+		if s != "" {
+			activeSlugs[s] = struct{}{}
+		}
+	}
+
+	autoSlugs := make(map[string]struct{})
+	if autoOut, aErr := m.WPCLI.Run(ctx, wpcli.CallOptions{
+		Account:     acct,
+		DocRoot:     verifiedRoot,
+		PHP:         phpSel,
+		Args:        []string{"option", "get", "auto_update_plugins", "--format=json"},
+		SkipPlugins: true,
+		SkipThemes:  true,
+		Timeout:     10 * time.Second,
+	}); aErr == nil {
+		if autoRaw, aOK := extractJSONArrayOrScalarList(autoOut); aOK {
+			var autoEntries []string
+			if json.Unmarshal([]byte(autoRaw), &autoEntries) == nil {
+				for _, entry := range autoEntries {
+					s := strings.TrimSpace(entry)
+					if idx := strings.IndexByte(s, '/'); idx > 0 {
+						s = s[:idx]
+					} else {
+						s = strings.TrimSuffix(s, ".php")
+					}
+					if s != "" {
+						autoSlugs[s] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+
+	for i := range items {
+		if _, isAct := activeSlugs[items[i].Slug]; isAct {
+			items[i].Status = "active"
+		} else if items[i].Status == "unknown" {
+			items[i].Status = "inactive"
+		}
+		if _, isAuto := autoSlugs[items[i].Slug]; isAuto {
+			items[i].AutoUpdate = true
+		}
+	}
+}
+
+func extractJSONArrayOrScalarList(raw string) (string, bool) {
+	trimmed := strings.TrimSpace(raw)
+	start := strings.IndexByte(trimmed, '[')
+	end := strings.LastIndexByte(trimmed, ']')
+	if start >= 0 && end >= start {
+		return trimmed[start : end+1], true
+	}
+	return "", false
 }
 
 func buildStaticFallbackItems(staticMap map[string]StaticHeader, vdb *vulndb.DB, isPlugin bool) []ExtensionItem {
@@ -738,12 +1016,23 @@ func (m *Manager) syncInstancePluginStats(inst store.InstanceRecord, items []Ext
 	if m.Vulns != nil && fresh.WPVersion != "" {
 		vulns += len(m.Vulns.MatchCore(fresh.WPVersion))
 	}
-	fresh.PluginCount = regCount
-	if updates > fresh.UpdateCount {
-		fresh.UpdateCount = updates
-	} else if updates == 0 && fresh.UpdateCount > 0 {
-		fresh.UpdateCount = 0
+
+	m.countsMu.Lock()
+	if m.extCounts == nil {
+		m.extCounts = make(map[string]instanceExtUpdateCounts)
 	}
+	c := m.extCounts[inst.ID]
+	c.pluginUpdates = updates
+	c.hasPlugins = true
+	m.extCounts[inst.ID] = c
+	totalUpdates := updates
+	if c.hasThemes {
+		totalUpdates += c.themeUpdates
+	}
+	m.countsMu.Unlock()
+
+	fresh.PluginCount = regCount
+	fresh.UpdateCount = totalUpdates
 	fresh.VulnCount = vulns
 	_, _ = m.Store.UpsertInstance(fresh)
 }
@@ -753,13 +1042,34 @@ func (m *Manager) syncInstanceThemeStats(inst store.InstanceRecord, items []Exte
 	if err != nil {
 		return
 	}
+	themeUpdates := 0
 	for _, it := range items {
 		if it.Status == "active" {
 			fresh.ActiveTheme = it.Title
-			break
+		}
+		if it.UpdateAvailable {
+			themeUpdates++
 		}
 	}
+
+	m.countsMu.Lock()
+	if m.extCounts == nil {
+		m.extCounts = make(map[string]instanceExtUpdateCounts)
+	}
+	c := m.extCounts[inst.ID]
+	c.themeUpdates = themeUpdates
+	c.hasThemes = true
+	m.extCounts[inst.ID] = c
+	hasPlugins := c.hasPlugins
+	totalUpdates := c.pluginUpdates + themeUpdates
+	m.countsMu.Unlock()
+
 	fresh.ThemeCount = len(items)
+	if hasPlugins {
+		fresh.UpdateCount = totalUpdates
+	} else if themeUpdates > fresh.UpdateCount {
+		fresh.UpdateCount = themeUpdates
+	}
 	_, _ = m.Store.UpsertInstance(fresh)
 }
 
