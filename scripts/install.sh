@@ -58,16 +58,28 @@ if [[ -f "${BUNDLE_ROOT}/bin/da-wptoolkit" ]]; then
 elif [[ -f "${BUNDLE_ROOT}/dist/da-wptoolkit-linux-${TARGET_ARCH}" ]]; then
   SRC_BIN="${BUNDLE_ROOT}/dist/da-wptoolkit-linux-${TARGET_ARCH}"
 else
-  echo "[1/7] Downloading DA-WordPressToolkits release (${REL_VER} / ${TARGET_ARCH}) from GitHub..."
   TMP_DL="$(mktemp -d /tmp/dawptk-install.XXXXXX)"
   TARBALL="da-wptoolkit-linux-${TARGET_ARCH}.tar.gz"
-  if [[ "$REL_VER" == "latest" ]]; then
+  RESOLVED_VER="$REL_VER"
+  if [[ "$RESOLVED_VER" == "latest" ]]; then
+    API_TAG="$(curl -fsSL --connect-timeout 5 "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | sed -n 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 || true)"
+    if [[ -n "$API_TAG" ]]; then
+      RESOLVED_VER="$API_TAG"
+    elif [[ -f "${BUNDLE_ROOT}/plugin/plugin.conf" ]]; then
+      CONF_VER="$(awk -F= '/^version=/{print $2}' "${BUNDLE_ROOT}/plugin/plugin.conf" | tr -d '[:space:]')"
+      if [[ -n "$CONF_VER" ]]; then
+        RESOLVED_VER="v${CONF_VER#v}"
+      fi
+    fi
+  fi
+  echo "[1/7] Downloading DA-WordPressToolkits release (${RESOLVED_VER} / ${TARGET_ARCH}) from GitHub..."
+  if [[ "$RESOLVED_VER" == "latest" ]]; then
     DL_BASE="https://github.com/${REPO}/releases/latest/download"
   else
-    DL_BASE="https://github.com/${REPO}/releases/download/${REL_VER}"
+    DL_BASE="https://github.com/${REPO}/releases/download/${RESOLVED_VER}"
   fi
-  curl -fsSL "${DL_BASE}/${TARBALL}" -o "${TMP_DL}/${TARBALL}"
-  curl -fsSL "${DL_BASE}/checksums.txt" -o "${TMP_DL}/checksums.txt"
+  curl -fsSL --retry 3 --retry-delay 2 "${DL_BASE}/${TARBALL}" -o "${TMP_DL}/${TARBALL}"
+  curl -fsSL --retry 3 --retry-delay 2 "${DL_BASE}/checksums.txt" -o "${TMP_DL}/checksums.txt"
   (cd "$TMP_DL" && grep "  ${TARBALL}\$" checksums.txt | sha256sum -c -)
   tar -xzf "${TMP_DL}/${TARBALL}" -C "$TMP_DL"
   BUNDLE_ROOT="$TMP_DL"

@@ -17,11 +17,11 @@ OOMScoreAdjust=-850
 LimitNOFILE=65535
 UMask=0022
 
-# Systemd sandboxing & privilege hardening
-# Note: NoNewPrivileges must remain 'no' only if invoking suid helpers; we drop UID/GID directly via syscall.Credential,
-# and child WP-CLI processes explicitly set PR_SET_NO_NEW_PRIVS.
-NoNewPrivileges=yes
-PrivateTmp=yes
+# Systemd sandboxing & DirectAdmin / CloudLinux compatibility
+# Note: PrivateTmp must remain 'no' so da-wptoolkitd and WP-CLI can reach DirectAdmin CustomBuild /tmp/mysql.sock.
+# NoNewPrivileges must remain 'no' so CloudLinux CageFS wrappers (/usr/sbin/cagefs_enter) work after dropping UID/GID.
+NoNewPrivileges=no
+PrivateTmp=no
 ProtectKernelModules=yes
 ProtectKernelTunables=yes
 ProtectKernelLogs=yes
@@ -29,7 +29,6 @@ ProtectClock=yes
 ProtectControlGroups=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RestrictRealtime=yes
-RestrictSUIDSGID=yes
 LockPersonality=yes
 
 StandardOutput=journal
