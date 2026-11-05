@@ -412,6 +412,187 @@ func TestVerifiedCoreCacheDownloadsAndRejectsTamperedTarball(t *testing.T) {
 	}
 }
 
+func TestNativeWPAdminCoreUpgradeDoesNotRevertOrEscalateToFortressLock(t *testing.T) {
+	tmp, _, st, shield, inst := setupTestWPFixture(t)
+
+	// Prepare verified WordPress 6.7.2 tree (7 changed/added Core files > ThrashThreshold=5)
+	wp672Dir := filepath.Join(tmp, "wp672_clean")
+	wp672Files := map[string]string{
+		"index.php":                   "<?php\n// WP 6.7.2\ndefine( 'WP_USE_THEMES', true );\nrequire __DIR__ . '/wp-blog-header.php';\n",
+		"wp-load.php":                 "<?php\n// WP 6.7.2\nif ( ! defined( 'ABSPATH' ) ) {\n\tdefine( 'ABSPATH', __DIR__ . '/' );\n}\n",
+		"wp-settings.php":             "<?php\n// Verified wp-settings.php 6.7.2\n",
+		"wp-includes/version.php":     "<?php\n$wp_version = '6.7.2';\n",
+		"wp-includes/functions.php":   "<?php\nfunction wp_clean_core_helper() { return '6.7.2'; }\n",
+		"wp-includes/block-hooks.php": "<?php\nfunction wp_new_672_block_hook() { return true; }\n",
+		"wp-admin/admin.php":          "<?php\n// Verified wp-admin/admin.php 6.7.2\n",
+	}
+	for rel, body := range wp672Files {
+		p := filepath.Join(wp672Dir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := shield.Cache.SeedVerifiedTree("6.7.2", "en_US", wp672Dir); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := shield.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// Simulate native wp-admin Core_Upgrader (.maintenance -> unpack Core -> remove .maintenance)
+	maintPath := filepath.Join(inst.DocRoot, ".maintenance")
+	if err := os.WriteFile(maintPath, []byte("<?php $upgrading = 1730000000; ?>\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(35 * time.Millisecond)
+
+	for rel, body := range wp672Files {
+		p := filepath.Join(inst.DocRoot, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	time.Sleep(35 * time.Millisecond)
+	_ = os.Remove(maintPath)
+
+	deadline := time.Now().Add(900 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		cur, err := st.GetInstance(inst.ID)
+		if err == nil && cur.WPVersion == "6.7.2" {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	time.Sleep(80 * time.Millisecond)
+
+	updated, err := st.GetInstance(inst.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.CoreShieldMode != config.ShieldModeAutoHeal {
+		t.Fatalf("expected CoreShieldMode to remain auto_heal after native wp-admin Core upgrade, got %s", updated.CoreShieldMode)
+	}
+	if updated.WPVersion != "6.7.2" {
+		t.Fatalf("expected WPVersion to adopt 6.7.2, got %s", updated.WPVersion)
+	}
+	if qItems := shield.Quarantine.List("reno26", inst.ID, false, false); len(qItems) != 0 {
+		t.Fatalf("expected 0 false-positive quarantine items after legitimate Core upgrade, got %d", len(qItems))
+	}
+	verOnDisk, err := os.ReadFile(filepath.Join(inst.DocRoot, "wp-includes", "version.php"))
+	if err != nil || !strings.Contains(string(verOnDisk), "6.7.2") {
+		t.Fatalf("expected wp-includes/version.php to stay at 6.7.2, got: %s", string(verOnDisk))
+	}
+	if _, err := os.Stat(filepath.Join(inst.DocRoot, "wp-includes", "block-hooks.php")); err != nil {
+		t.Fatalf("expected newly added official Core file wp-includes/block-hooks.php to remain intact: %v", err)
+	}
+}
+
+func TestFortressCoreLockInstallsDirectFSBridgeAndUnlockCleansUp(t *testing.T) {
+	_, acct, _, shield, inst := setupTestWPFixture(t)
+	ctx := context.Background()
+
+	if _, err := shield.SetMode(ctx, acct, inst.ID, config.ShieldModeFortressLock, true); err != nil {
+		t.Fatalf("SetMode(fortress_lock): %v", err)
+	}
+
+	upgradeDir := filepath.Join(inst.DocRoot, "wp-content", "upgrade")
+	if st, err := os.Stat(upgradeDir); err != nil || !st.IsDir() {
+		t.Fatalf("expected wp-content/upgrade directory to exist for WP_Upgrader: %v", err)
+	}
+
+	muBridge := filepath.Join(inst.DocRoot, "wp-content", "mu-plugins", fortressDirectFSMUFile)
+	rawMU, err := os.ReadFile(muBridge)
+	if err != nil {
+		t.Fatalf("expected Fortress direct-FS MU bridge %s to exist: %v", muBridge, err)
+	}
+	if !strings.Contains(string(rawMU), "filesystem_method") || !strings.Contains(string(rawMU), "'direct'") {
+		t.Fatal("expected MU bridge to register filesystem_method -> 'direct' filter")
+	}
+
+	if _, err := shield.SetMode(ctx, acct, inst.ID, config.ShieldModeAutoHeal, true); err != nil {
+		t.Fatalf("SetMode(auto_heal): %v", err)
+	}
+	if _, err := os.Stat(muBridge); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected Fortress direct-FS MU bridge to be removed upon UnlockInstance, got err=%v", err)
+	}
+	indexPath := filepath.Join(inst.DocRoot, "index.php")
+	orig, _ := os.ReadFile(indexPath)
+	if err := os.WriteFile(indexPath, orig, 0o644); err != nil {
+		t.Fatalf("expected Core files to be customer-writable again after UnlockInstance: %v", err)
+	}
+}
+
+func TestStartupMigrationUnlocksPriorThrashLockedInstances(t *testing.T) {
+	tmp, acct, st, shield, inst := setupTestWPFixture(t)
+
+	// Simulate an instance previously auto-locked by false-positive core_thrash_lock
+	manifest, _ := shield.Cache.GetCachedManifest(inst.WPVersion, inst.Locale)
+	if err := shield.Locker.LockInstance(acct, inst, manifest); err != nil {
+		t.Fatal(err)
+	}
+	inst.CoreShieldMode = config.ShieldModeFortressLock
+	if _, err := st.UpsertInstance(inst); err != nil {
+		t.Fatal(err)
+	}
+	st.RecordSecurityEvent(store.SecurityAuditEvent{
+		Severity:   "critical",
+		Category:   "core_thrash_lock",
+		Owner:      inst.Owner,
+		InstanceID: inst.ID,
+		Message:    "Anti-Thrashing guard triggered",
+	})
+
+	// Simulate daemon restart (re-opening Store from disk so security_events.jsonl is tested too!)
+	reopenedStore, err := store.Open(filepath.Join(tmp, "state"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	users := dausers.NewRegistry(filepath.Join(tmp, "da_data"), filepath.Join(tmp, "passwd"))
+	_ = users.Reload()
+	pol := config.NewPolicyStore(filepath.Join(tmp, "policy"), filepath.Join(tmp, "updater.conf"))
+
+	restartedShield, err := NewShield(reopenedStore, users, pol, ShieldConfig{
+		StateDir:        filepath.Join(tmp, "state"),
+		CoreCacheDir:    filepath.Join(tmp, "core_cache"),
+		QuarantineDir:   filepath.Join(tmp, "quarantine"),
+		PollInterval:    50 * time.Millisecond,
+		AuditInterval:   5 * time.Minute,
+		ThrashThreshold: 5,
+		ThrashWindow:    30 * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := restartedShield.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	migrated, err := reopenedStore.GetInstance(inst.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if migrated.CoreShieldMode != config.ShieldModeAutoHeal {
+		t.Fatalf("expected prior thrash-locked site to migrate back to auto_heal on startup, got %s", migrated.CoreShieldMode)
+	}
+	indexPath := filepath.Join(inst.DocRoot, "index.php")
+	orig, _ := os.ReadFile(indexPath)
+	if err := os.WriteFile(indexPath, orig, 0o644); err != nil {
+		t.Fatalf("expected Core index.php to be unlocked and writable after migration: %v", err)
+	}
+}
+
 func createTestTarGz(destTarGz, sourceDir string) error {
 	f, err := os.Create(destTarGz)
 	if err != nil {

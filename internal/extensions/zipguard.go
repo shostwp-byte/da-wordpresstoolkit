@@ -103,9 +103,28 @@ func StageCustomerZip(
 	base64Zip string,
 	uid, gid uint32,
 ) (stagedPath string, topSlug string, cleanup func(), err error) {
-	if err := os.MkdirAll(customerTempDir, 0o700); err != nil {
+	parentDir := filepath.Dir(filepath.Clean(customerTempDir))
+	if st, lErr := os.Lstat(parentDir); lErr != nil {
+		if errors.Is(lErr, os.ErrNotExist) {
+			if mkErr := os.MkdirAll(parentDir, 0o755); mkErr != nil {
+				return "", "", nil, mkErr
+			}
+			_ = os.Chmod(parentDir, 0o755)
+			_ = chownFile(parentDir, uid, gid)
+		} else {
+			return "", "", nil, lErr
+		}
+	} else if st.Mode()&os.ModeSymlink != 0 {
+		return "", "", nil, errors.New("security violation: symbolic link parent directory blocked")
+	}
+
+	if st, lErr := os.Lstat(customerTempDir); lErr == nil && st.Mode()&os.ModeSymlink != 0 {
+		return "", "", nil, errors.New("security violation: symbolic link staging directory blocked")
+	}
+	if err := os.MkdirAll(customerTempDir, 0o755); err != nil {
 		return "", "", nil, err
 	}
+	_ = os.Chmod(customerTempDir, 0o755)
 	_ = chownFile(customerTempDir, uid, gid)
 
 	tmpFile, err := os.CreateTemp(customerTempDir, "wptk-pkg-*.zip")

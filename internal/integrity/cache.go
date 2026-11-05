@@ -152,10 +152,6 @@ func (c *CoreCache) GetCachedManifest(version, locale string) (*CoreManifest, bo
 	manifestPath := filepath.Join(c.releaseDir(v, loc), "manifest.json")
 	raw, err := os.ReadFile(manifestPath)
 	if err != nil {
-		// Fallback to en_US if localized manifest is not cached separately
-		if loc != "en_US" {
-			return c.GetCachedManifest(v, "en_US")
-		}
 		return nil, false
 	}
 	var m CoreManifest
@@ -345,23 +341,56 @@ func (c *CoreCache) queryChecksumsOnce(ctx context.Context, version, locale stri
 	return filtered, nil
 }
 
+func (c *CoreCache) candidateTarballURLs(version, locale string) []string {
+	base := strings.TrimRight(c.DownloadBaseURL, "/")
+	var urls []string
+	if locale != "" && locale != "en_US" {
+		if c.DownloadBaseURL == DefaultDownloadBaseURL {
+			urls = append(urls,
+				"https://downloads.wordpress.org/release/"+locale+"/wordpress-"+version+".tar.gz",
+			)
+		} else {
+			urls = append(urls, base+"/release/"+locale+"/wordpress-"+version+".tar.gz")
+		}
+	}
+	urls = append(urls, base+"/wordpress-"+version+".tar.gz")
+	return urls
+}
+
+func (c *CoreCache) downloadCoreTarballStream(ctx context.Context, version, locale string) (io.ReadCloser, error) {
+	candidates := c.candidateTarballURLs(version, locale)
+	var lastErr error
+	for _, tarURL := range candidates {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, tarURL, nil)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if resp.StatusCode == http.StatusOK {
+			return resp.Body, nil
+		}
+		_ = resp.Body.Close()
+		lastErr = fmt.Errorf("download WordPress core %s (%s) HTTP %d", version, locale, resp.StatusCode)
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("download WordPress core %s failed", version)
+	}
+	return nil, lastErr
+}
+
 func (c *CoreCache) downloadAndVerifyTarball(ctx context.Context, version, locale string, expectedMD5 map[string]string) (*CoreManifest, error) {
-	tarURL := strings.TrimRight(c.DownloadBaseURL, "/") + "/wordpress-" + version + ".tar.gz"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tarURL, nil)
+	bodyStream, err := c.downloadCoreTarballStream(ctx, version, locale)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+	defer bodyStream.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("download WordPress core %s HTTP %d", version, resp.StatusCode)
-	}
-
-	gz, err := gzip.NewReader(io.LimitReader(resp.Body, maxCoreArchiveBytes))
+	gz, err := gzip.NewReader(io.LimitReader(bodyStream, maxCoreArchiveBytes))
 	if err != nil {
 		return nil, fmt.Errorf("open core tar.gz stream: %w", err)
 	}

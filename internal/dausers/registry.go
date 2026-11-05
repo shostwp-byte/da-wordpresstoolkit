@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	DefaultMinUID   = uint32(1000)
+	DefaultMinUID   = uint32(500)
 	DefaultMaxUID   = uint32(65533) // Explicitly excludes nobody/nfsnobody (65534)
 	DefaultCacheTTL = 2 * time.Second
 )

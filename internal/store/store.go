@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bufio"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -153,6 +154,8 @@ func (s *Store) securityEventsPath() string {
 }
 
 func (s *Store) loadFromDisk() error {
+	s.loadSecurityEventsFromDisk()
+
 	p := s.registryPath()
 	info, err := os.Lstat(p)
 	if err != nil {
@@ -179,6 +182,40 @@ func (s *Store) loadFromDisk() error {
 		s.sets = snap.Sets
 	}
 	return nil
+}
+
+func (s *Store) loadSecurityEventsFromDisk() {
+	p := s.securityEventsPath()
+	info, err := os.Lstat(p)
+	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return
+	}
+	f, err := os.Open(p)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 64*1024), 512*1024)
+	var loaded []SecurityAuditEvent
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" {
+			continue
+		}
+		var ev SecurityAuditEvent
+		if json.Unmarshal([]byte(line), &ev) == nil {
+			loaded = append(loaded, ev)
+			if len(loaded) > DefaultMaxSecurityEvents*2 {
+				loaded = append([]SecurityAuditEvent(nil), loaded[len(loaded)-DefaultMaxSecurityEvents:]...)
+			}
+		}
+	}
+	if len(loaded) > DefaultMaxSecurityEvents {
+		loaded = append([]SecurityAuditEvent(nil), loaded[len(loaded)-DefaultMaxSecurityEvents:]...)
+	}
+	s.securityEvents = loaded
 }
 
 func (s *Store) flushRegistryLocked() error {
@@ -588,6 +625,45 @@ func (s *Store) RecentSecurityEvents(limit int) []SecurityAuditEvent {
 		out = append(out, s.securityEvents[i])
 	}
 	return out
+}
+
+// HasSecurityEvent reports whether any recorded security event matches category and instanceID
+// (checking both the in-memory ring buffer and persisted security_events.jsonl).
+func (s *Store) HasSecurityEvent(category, instanceID string) bool {
+	s.mu.RLock()
+	for i := len(s.securityEvents) - 1; i >= 0; i-- {
+		ev := s.securityEvents[i]
+		if ev.Category == category && ev.InstanceID == instanceID {
+			s.mu.RUnlock()
+			return true
+		}
+	}
+	p := s.securityEventsPath()
+	s.mu.RUnlock()
+
+	info, err := os.Lstat(p)
+	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return false
+	}
+	f, err := os.Open(p)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 64*1024), 512*1024)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" || !strings.Contains(line, category) || !strings.Contains(line, instanceID) {
+			continue
+		}
+		var ev SecurityAuditEvent
+		if json.Unmarshal([]byte(line), &ev) == nil && ev.Category == category && ev.InstanceID == instanceID {
+			return true
+		}
+	}
+	return false
 }
 
 func sortInstances(list []InstanceRecord) {

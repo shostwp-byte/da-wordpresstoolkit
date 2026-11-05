@@ -9,15 +9,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/shostwp-byte/da-wptoolkits/internal/config"
 	"github.com/shostwp-byte/da-wptoolkits/internal/dausers"
+	"github.com/shostwp-byte/da-wptoolkits/internal/discovery"
 	"github.com/shostwp-byte/da-wptoolkits/internal/fsguard"
 	"github.com/shostwp-byte/da-wptoolkits/internal/store"
 )
+
+var reLocalPackageLine = regexp.MustCompile(`(?m)^\s*\$wp_local_package\s*=\s*['"][^'"]*['"]\s*;[ \t]*\r?\n?`)
 
 const (
 	DefaultAuditInterval   = 30 * time.Minute
@@ -147,6 +151,9 @@ func NewShield(
 // Start activates real-time kernel inotify monitoring, syncs watches for all managed instances,
 // and launches the periodic 30-minute integrity sweep.
 func (s *Shield) Start(ctx context.Context) error {
+	s.migratePriorThrashLocksOnce()
+	s.ReconcileAllOwnership()
+
 	if err := s.watcher.Start(ctx, s.handleWatchEvent, func() {
 		// On kernel IN_Q_OVERFLOW, run an immediate full audit sweep so zero modifications can slip through!
 		s.SweepAll(ctx)
@@ -169,6 +176,91 @@ func (s *Shield) Start(ctx context.Context) error {
 		}
 	}()
 	return nil
+}
+
+// migratePriorThrashLocksOnce runs once on daemon upgrade to unlock instances that were previously
+// auto-escalated to fortress_lock by localized/upgrader false-positive thrash events, restoring <user>:<user> ownership.
+func (s *Shield) migratePriorThrashLocksOnce() {
+	if s.Store == nil || s.Locker == nil || strings.TrimSpace(s.Locker.StateDir) == "" {
+		return
+	}
+	marker := filepath.Join(s.Locker.StateDir, ".migrated_ftp_fix_v101")
+	if _, err := os.Lstat(marker); err == nil {
+		return
+	}
+
+	for _, inst := range s.Store.ListAllInstances(false) {
+		if inst.CoreShieldMode != config.ShieldModeFortressLock {
+			continue
+		}
+		if !s.Store.HasSecurityEvent("core_thrash_lock", inst.ID) {
+			continue
+		}
+		acct, ok := s.resolveAccount(inst.Owner)
+		if !ok {
+			continue
+		}
+		manifest, _ := s.Cache.GetCachedManifest(inst.WPVersion, inst.Locale)
+		_ = s.Locker.UnlockInstance(acct, inst, manifest)
+		inst.CoreShieldMode = config.ShieldModeAutoHeal
+		inst.CoreIntegrityClean = true
+		if saved, err := s.Store.UpsertInstance(inst); err == nil {
+			s.recordEvent("info", "core_shield_reconcile", saved, "Restored customer ownership after prior false-positive thrash lock")
+		}
+	}
+
+	_ = os.MkdirAll(s.Locker.StateDir, 0o700)
+	_ = os.WriteFile(marker, []byte("ok\n"), 0o600)
+}
+
+// ReconcileAllOwnership guarantees every managed instance has clean filesystem ownership matching its CoreShieldMode
+// so native wp-admin updates never unexpectedly prompt for FTP credentials.
+func (s *Shield) ReconcileAllOwnership() {
+	if s.Store == nil || s.Locker == nil {
+		return
+	}
+	for _, inst := range s.Store.ListAllInstances(false) {
+		if acct, ok := s.resolveAccount(inst.Owner); ok {
+			s.ReconcileInstanceOwnership(acct, inst)
+		}
+	}
+}
+
+// ReconcileInstanceOwnership repairs any root-owned Core or wp-content directories/files on an instance
+// (or installs the wp-content 'direct' filesystem MU bridge when Fortress Core Lock is intentionally active).
+func (s *Shield) ReconcileInstanceOwnership(acct dausers.Account, inst store.InstanceRecord) {
+	if s.Locker == nil || inst.Detached || acct.HomeDir == "" {
+		return
+	}
+	domainsRoot := filepath.Join(filepath.Clean(acct.HomeDir), "domains")
+	guard, err := fsguard.New(domainsRoot, nil)
+	if err != nil {
+		return
+	}
+	verifiedDocRoot, err := guard.VerifyExistingPath(inst.DocRoot)
+	if err != nil {
+		return
+	}
+
+	s.pushSuppression(inst.ID)
+	defer s.popSuppression(inst.ID)
+
+	manifest, _ := s.Cache.GetCachedManifest(inst.WPVersion, inst.Locale)
+	if inst.CoreShieldMode == config.ShieldModeFortressLock {
+		_ = s.Locker.LockInstance(acct, inst, manifest)
+		return
+	}
+
+	muBridgePath := filepath.Join(verifiedDocRoot, "wp-content", "mu-plugins", fortressDirectFSMUFile)
+	if st, lErr := os.Lstat(muBridgePath); lErr == nil && st.Mode()&os.ModeSymlink == 0 {
+		_ = os.Remove(muBridgePath)
+	}
+
+	if NeedsCoreOwnershipRepair(acct, verifiedDocRoot) {
+		_ = s.Locker.UnlockInstance(acct, inst, manifest)
+		return
+	}
+	_ = EnsureCustomerWPContentOwned(guard, acct, verifiedDocRoot)
 }
 
 // WatchStats returns (activeWatches, maxWatchBudget) for daemon ping & Admin Panel telemetry.
@@ -317,10 +409,27 @@ func (s *Shield) inspectSingleEvent(acct dausers.Account, inst store.InstanceRec
 		return WatchOutcome{Handled: true}
 	}
 	relPosix := filepath.ToSlash(relOS)
+	baseName := filepath.Base(relPosix)
 	if relPosix == "wp-content" || strings.HasPrefix(relPosix, "wp-content/") ||
 		relPosix == "wp-config.php" || relPosix == ".htaccess" ||
-		strings.HasPrefix(filepath.Base(relPosix), ".da-wptk-") {
+		strings.HasPrefix(baseName, ".da-wptk-") ||
+		strings.HasPrefix(baseName, "temp-write-test-") {
 		return WatchOutcome{Handled: true}
+	}
+	if relPosix == ".maintenance" {
+		if _, lErr := os.Lstat(filepath.Join(verifiedDocRoot, ".maintenance")); errors.Is(lErr, os.ErrNotExist) {
+			uCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			updatedInst, _, upgraded := s.reconcileLegitimateCoreUpgrade(uCtx, acct, inst, guard, verifiedDocRoot)
+			cancel()
+			if upgraded {
+				s.SyncInstanceWatch(updatedInst)
+			}
+		}
+		return WatchOutcome{Handled: true}
+	}
+	if isNativeWPUpgraderActive(guard, verifiedDocRoot) {
+		// Pause healing while WordPress Core_Upgrader unpacks files under .maintenance lock.
+		return WatchOutcome{Handled: false}
 	}
 	if s.Quarantine.IsWhitelisted(inst.ID, relPosix) {
 		return WatchOutcome{Handled: true}
@@ -339,6 +448,16 @@ func (s *Shield) inspectSingleEvent(acct dausers.Account, inst store.InstanceRec
 		st, lErr := os.Lstat(target)
 		if lErr != nil {
 			if errors.Is(lErr, os.ErrNotExist) {
+				uCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+				updatedInst, newManifest, upgraded := s.reconcileLegitimateCoreUpgrade(uCtx, acct, inst, guard, verifiedDocRoot)
+				cancel()
+				if upgraded {
+					inst = updatedInst
+					manifest = newManifest
+					if _, stillCore := manifest.Files[relPosix]; !stillCore {
+						return WatchOutcome{Handled: true, RemovedFile: true}
+					}
+				}
 				if !shouldHeal {
 					s.markIntegrityClean(inst, false)
 					return WatchOutcome{Handled: true}
@@ -375,8 +494,24 @@ func (s *Shield) inspectSingleEvent(acct dausers.Account, inst store.InstanceRec
 			return WatchOutcome{Handled: false}
 		}
 		sum := sha256.Sum256(tamperedBytes)
-		if hex.EncodeToString(sum[:]) == expected.SHA256 {
+		if hex.EncodeToString(sum[:]) == expected.SHA256 || isBenignLocalizedCoreDiff(inst.Locale, manifest, relPosix, tamperedBytes, s.Cache) {
 			return WatchOutcome{Handled: true, RestoredBytes: tamperedBytes} // Matches verified Core digest 100%
+		}
+
+		// Before treating as tampering, check if a legitimate native wp-admin Core upgrade just completed.
+		uCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		updatedInst, newManifest, upgraded := s.reconcileLegitimateCoreUpgrade(uCtx, acct, inst, guard, verifiedDocRoot)
+		cancel()
+		if upgraded {
+			inst = updatedInst
+			manifest = newManifest
+			if newExp, stillCore := manifest.Files[relPosix]; stillCore {
+				if hex.EncodeToString(sum[:]) == newExp.SHA256 || isBenignLocalizedCoreDiff(inst.Locale, manifest, relPosix, tamperedBytes, s.Cache) {
+					return WatchOutcome{Handled: true, RestoredBytes: tamperedBytes}
+				}
+			} else if !isSuspiciousCoreExecutable(relPosix, tamperedBytes) {
+				return WatchOutcome{Handled: true, RestoredBytes: tamperedBytes}
+			}
 		}
 
 		if !shouldHeal {
@@ -426,6 +561,20 @@ func (s *Shield) inspectSingleEvent(acct dausers.Account, inst store.InstanceRec
 		}
 		if !isSuspiciousCoreExecutable(relPosix, raw) {
 			return WatchOutcome{Handled: true}
+		}
+
+		uCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		updatedInst, newManifest, upgraded := s.reconcileLegitimateCoreUpgrade(uCtx, acct, inst, guard, verifiedDocRoot)
+		cancel()
+		if upgraded {
+			inst = updatedInst
+			manifest = newManifest
+			if newExp, nowOfficial := manifest.Files[relPosix]; nowOfficial {
+				sum := sha256.Sum256(raw)
+				if hex.EncodeToString(sum[:]) == newExp.SHA256 || isBenignLocalizedCoreDiff(inst.Locale, manifest, relPosix, raw, s.Cache) {
+					return WatchOutcome{Handled: true, RestoredBytes: raw}
+				}
+			}
 		}
 		if !shouldHeal {
 			s.markIntegrityClean(inst, false)
@@ -531,6 +680,22 @@ func (s *Shield) VerifyAndHealInstance(
 		return VerifyReport{}, err
 	}
 
+	if !forceHeal && isNativeWPUpgraderActive(guard, verifiedDocRoot) {
+		return VerifyReport{
+			InstanceID:    inst.ID,
+			Domain:        inst.Domain + inst.SubPath,
+			WPVersion:     inst.WPVersion,
+			Locale:        inst.Locale,
+			Mode:          inst.CoreShieldMode,
+			Clean:         true,
+			ElapsedMillis: time.Since(started).Milliseconds(),
+		}, nil
+	}
+
+	if updatedInst, _, upgraded := s.reconcileLegitimateCoreUpgrade(ctx, acct, inst, guard, verifiedDocRoot); upgraded {
+		inst = updatedInst
+	}
+
 	manifest, err := s.Cache.EnsureVerifiedCore(ctx, inst.WPVersion, inst.Locale)
 	if err != nil {
 		return VerifyReport{}, fmt.Errorf("load verified WordPress Core %s (%s): %w", inst.WPVersion, inst.Locale, err)
@@ -593,7 +758,7 @@ func (s *Shield) VerifyAndHealInstance(
 			continue
 		}
 		sum := sha256.Sum256(raw)
-		if hex.EncodeToString(sum[:]) == expected.SHA256 {
+		if hex.EncodeToString(sum[:]) == expected.SHA256 || isBenignLocalizedCoreDiff(inst.Locale, manifest, relPosix, raw, s.Cache) {
 			continue
 		}
 
@@ -662,6 +827,8 @@ func (s *Shield) VerifyAndHealInstance(
 
 	if shouldHeal && wasLocked {
 		_ = s.Locker.LockInstance(acct, inst, manifest)
+	} else if !wasLocked {
+		_ = EnsureCustomerWPContentOwned(guard, acct, verifiedDocRoot)
 	}
 
 	totalAnomalies := len(rep.ModifiedFiles) + len(rep.MissingFiles) + len(rep.UnknownExecutables)
@@ -899,4 +1066,123 @@ func isSuspiciousCoreExecutable(relPosix string, content []byte) bool {
 	}
 	lower := bytes.ToLower(sample)
 	return bytes.Contains(lower, []byte("<?php")) || bytes.Contains(lower, []byte("<?="))
+}
+
+func isNativeWPUpgraderActive(guard *fsguard.Guard, verifiedDocRoot string) bool {
+	maintPath := filepath.Join(verifiedDocRoot, ".maintenance")
+	st, err := os.Lstat(maintPath)
+	if err != nil || st.Mode()&os.ModeSymlink != 0 || !st.Mode().IsRegular() {
+		return false
+	}
+	if st.Size() <= 0 || st.Size() > 4096 || time.Since(st.ModTime()) > 10*time.Minute {
+		return false
+	}
+	raw, err := guard.ReadRegularFileSafe(maintPath, 4096)
+	if err != nil {
+		return false
+	}
+	return bytes.Contains(raw, []byte("$upgrading")) && !bytes.Contains(raw, []byte("DA-WPTK-MAINTENANCE"))
+}
+
+func (s *Shield) reconcileLegitimateCoreUpgrade(
+	ctx context.Context,
+	acct dausers.Account,
+	inst store.InstanceRecord,
+	guard *fsguard.Guard,
+	verifiedDocRoot string,
+) (store.InstanceRecord, *CoreManifest, bool) {
+	if s.Cache == nil {
+		return inst, nil, false
+	}
+	prevVer := inst.WPVersion
+	prevLoc := inst.Locale
+	if s.Store != nil {
+		if latest, err := s.Store.GetInstance(inst.ID); err == nil {
+			inst = latest
+		}
+	}
+
+	verPath := filepath.Join(verifiedDocRoot, "wp-includes", "version.php")
+	verRaw, err := guard.ReadRegularFileSafe(verPath, maxSingleCoreFileBytes)
+	if err != nil {
+		return inst, nil, false
+	}
+	diskVer, diskLocale := discovery.ParseVersionPHP(verRaw)
+	if diskLocale == "" || config.ValidateIdentifier(diskLocale) != nil {
+		diskLocale = inst.Locale
+	}
+	normVer, normLoc, err := normalizeVersionAndLocale(diskVer, diskLocale)
+	if err != nil {
+		return inst, nil, false
+	}
+	diskVer = normVer
+	diskLocale = normLoc
+
+	if diskVer == inst.WPVersion && diskLocale == inst.Locale {
+		// If another concurrent watcher event already reconciled Store, return the new cached manifest!
+		if diskVer != prevVer || diskLocale != prevLoc {
+			if m, ok := s.Cache.GetCachedManifest(diskVer, diskLocale); ok {
+				return inst, m, true
+			}
+		}
+		return inst, nil, false
+	}
+
+	newManifest, err := s.Cache.EnsureVerifiedCore(ctx, diskVer, diskLocale)
+	if err != nil || newManifest == nil {
+		return inst, nil, false
+	}
+	expVerFile, ok := newManifest.Files["wp-includes/version.php"]
+	if !ok {
+		return inst, nil, false
+	}
+	sum := sha256.Sum256(verRaw)
+	if hex.EncodeToString(sum[:]) != expVerFile.SHA256 &&
+		!isBenignLocalizedCoreDiff(diskLocale, newManifest, "wp-includes/version.php", verRaw, s.Cache) {
+		return inst, nil, false
+	}
+
+	s.mu.Lock()
+	delete(s.thrashHistory, inst.ID)
+	s.mu.Unlock()
+
+	inst.WPVersion = diskVer
+	inst.Locale = diskLocale
+	inst.CoreIntegrityClean = true
+	if s.Store != nil {
+		if saved, uErr := s.Store.UpsertInstance(inst); uErr == nil {
+			inst = saved
+		}
+	}
+
+	if inst.CoreShieldMode != config.ShieldModeFortressLock {
+		_ = EnsureCustomerWPContentOwned(guard, acct, verifiedDocRoot)
+	}
+	return inst, newManifest, true
+}
+
+func isBenignLocalizedCoreDiff(instLocale string, manifest *CoreManifest, relPosix string, diskBytes []byte, cache *CoreCache) bool {
+	if manifest == nil || instLocale == "" || instLocale == "en_US" || manifest.Locale == instLocale {
+		return false
+	}
+	switch relPosix {
+	case "readme.html", "license.txt":
+		return !isSuspiciousCoreExecutable(relPosix, diskBytes)
+	case "wp-includes/version.php":
+		if cache == nil {
+			return false
+		}
+		cleanPath, err := cache.CleanFilePath(manifest.Version, manifest.Locale, relPosix)
+		if err != nil {
+			return false
+		}
+		cleanBytes, err := os.ReadFile(cleanPath)
+		if err != nil {
+			return false
+		}
+		normDisk := reLocalPackageLine.ReplaceAll(bytes.ReplaceAll(diskBytes, []byte("\r\n"), []byte("\n")), nil)
+		normClean := bytes.ReplaceAll(cleanBytes, []byte("\r\n"), []byte("\n"))
+		return bytes.Equal(bytes.TrimSpace(normDisk), bytes.TrimSpace(normClean))
+	}
+	return false
 }

@@ -565,6 +565,7 @@ func (s *Service) handleDirectAdminHookEvent(ctx context.Context, req ipc.Reques
 			}
 		}
 		if s.Shield != nil {
+			s.Shield.ReconcileAllOwnership()
 			s.Shield.SyncAllWatches()
 		}
 		return ipc.Response{
@@ -724,6 +725,7 @@ func (s *Service) handleDirectAdminHookEvent(ctx context.Context, req ipc.Reques
 			res = scanRes
 		}
 		if s.Shield != nil {
+			s.Shield.ReconcileAllOwnership()
 			s.Shield.SyncAllWatches()
 		}
 		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"event": ev, "username": owner, "scan": res}}

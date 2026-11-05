@@ -182,6 +182,7 @@ func (s *Service) HandleAdminRequest(ctx context.Context, cred auth.PeerCred, re
 				return ipc.Response{OK: false, Code: 500, Error: sErr.Error()}
 			}
 			if s.Shield != nil {
+				s.Shield.ReconcileAllOwnership()
 				s.Shield.SyncAllWatches()
 			}
 			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: res}
@@ -200,6 +201,7 @@ func (s *Service) HandleAdminRequest(ctx context.Context, cred auth.PeerCred, re
 			combined.Instances = append(combined.Instances, r.Instances...)
 		}
 		if s.Shield != nil {
+			s.Shield.ReconcileAllOwnership()
 			s.Shield.SyncAllWatches()
 		}
 		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: combined}
@@ -254,6 +256,9 @@ func (s *Service) HandleAdminRequest(ctx context.Context, cred auth.PeerCred, re
 		inst, acct, rErr := s.resolveAdminInstanceAndOwner(req.InstanceID)
 		if rErr != nil {
 			return ipc.Response{OK: false, Code: 404, Error: rErr.Error()}
+		}
+		if s.Shield != nil {
+			s.Shield.ReconcileInstanceOwnership(acct, inst)
 		}
 		ssoRes, sErr := s.Lifecycle.CreateEphemeralSSO(acct, inst, paramString(req.Params, "admin_user"))
 		if sErr != nil {
@@ -612,6 +617,7 @@ func (s *Service) HandleUserRequest(ctx context.Context, cred auth.PeerCred, req
 			return ipc.Response{OK: false, Code: 500, Error: sErr.Error()}
 		}
 		if s.Shield != nil {
+			s.Shield.ReconcileAllOwnership()
 			s.Shield.SyncAllWatches()
 		}
 		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: res}
@@ -650,6 +656,9 @@ func (s *Service) HandleUserRequest(ctx context.Context, cred auth.PeerCred, req
 		inst, gErr := s.Store.GetInstanceForOwner(strings.TrimSpace(req.InstanceID), caller.Username)
 		if gErr != nil {
 			return ipc.Response{OK: false, Code: 404, Error: "WordPress instance not found"}
+		}
+		if s.Shield != nil {
+			s.Shield.ReconcileInstanceOwnership(caller.Account, inst)
 		}
 		ssoRes, sErr := s.Lifecycle.CreateEphemeralSSO(caller.Account, inst, paramString(req.Params, "admin_user"))
 		if sErr != nil {
@@ -1166,8 +1175,10 @@ func (s *Service) postInstallSecurityHook(ctx context.Context, acct dausers.Acco
 	}
 	if s.Shield != nil {
 		if latest, gErr := s.Store.GetInstance(instanceID); gErr == nil {
+			s.Shield.ReconcileInstanceOwnership(acct, latest)
 			s.Shield.SyncInstanceWatch(latest)
 		} else {
+			s.Shield.ReconcileInstanceOwnership(acct, inst)
 			s.Shield.SyncInstanceWatch(inst)
 		}
 	}

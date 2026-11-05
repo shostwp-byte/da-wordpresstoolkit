@@ -16,6 +16,34 @@ import (
 	"github.com/shostwp-byte/da-wptoolkits/internal/store"
 )
 
+const fortressDirectFSMUFile = "da-wptk-direct-fs.php"
+
+const fortressDirectFSMUCode = `<?php
+/**
+ * Managed by DA-WordPressToolkits Fortress Core Lock.
+ * Preserves native 'direct' filesystem updates for wp-content (plugins, themes, languages)
+ * while WordPress Core (wp-admin, wp-includes) is protected by root ownership.
+ */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+add_filter( 'filesystem_method', static function ( $method, $args, $context ) {
+	if ( defined( 'FS_METHOD' ) && FS_METHOD ) {
+		return $method;
+	}
+	$ctx = is_string( $context ) && $context !== '' ? wp_normalize_path( $context ) : '';
+	$wp_content = defined( 'WP_CONTENT_DIR' ) ? wp_normalize_path( WP_CONTENT_DIR ) : '';
+	if ( $ctx !== '' && $wp_content !== '' && strpos( rtrim( $ctx, '/' ) . '/', rtrim( $wp_content, '/' ) . '/' ) === 0 ) {
+		return 'direct';
+	}
+	if ( $ctx === '' || @is_writable( $ctx ) ) {
+		return 'direct';
+	}
+	return $method;
+}, 999, 3 );
+`
+
 // Canonical root-level WordPress Core files inside DocRoot (never wp-config.php or .htaccess).
 var canonicalRootCoreFiles = map[string]bool{
 	"index.php":            true,
@@ -105,11 +133,10 @@ func (l *CoreLocker) LockInstance(acct dausers.Account, inst store.InstanceRecor
 		_ = writeGuardedCoreFile(guard, acct, htPath, []byte(""), 0o644)
 	}
 
-	// Ensure wp-content exists and stays owned by <user>:<user>
-	wpContent := filepath.Join(verifiedDocRoot, "wp-content")
-	if st, err := os.Lstat(wpContent); err == nil && st.IsDir() && st.Mode()&os.ModeSymlink == 0 {
-		_ = releaseKernelCoreLock(wpContent, true, acct.UID, acct.GID)
-	}
+	// Ensure wp-content/** stays owned & writable by <user>:<user> and install direct-FS bridge for wp-content updates
+	_ = EnsureCustomerWPContentOwned(guard, acct, verifiedDocRoot)
+	muBridgePath := filepath.Join(verifiedDocRoot, "wp-content", "mu-plugins", fortressDirectFSMUFile)
+	_ = writeGuardedCoreFile(guard, acct, muBridgePath, []byte(fortressDirectFSMUCode), 0o644)
 
 	// 1. Lock root Core files in DocRoot
 	rootFiles := make(map[string]bool, len(canonicalRootCoreFiles))
@@ -184,19 +211,144 @@ func (l *CoreLocker) UnlockInstance(acct dausers.Account, inst store.InstanceRec
 			if name == "wp-config.php" || name == ".htaccess" || ent.IsDir() {
 				continue
 			}
-			if canonicalRootCoreFiles[name] || (manifest != nil && manifest.Files[name].SHA256 != "") {
-				p := filepath.Join(verifiedDocRoot, name)
-				if st, lErr := os.Lstat(p); lErr == nil && st.Mode()&os.ModeSymlink == 0 && st.Mode().IsRegular() {
-					_ = releaseKernelCoreLock(p, false, acct.UID, acct.GID)
-				}
+			p := filepath.Join(verifiedDocRoot, name)
+			st, lErr := os.Lstat(p)
+			if lErr != nil || st.Mode()&os.ModeSymlink != 0 || !st.Mode().IsRegular() {
+				continue
+			}
+			if canonicalRootCoreFiles[name] || (manifest != nil && manifest.Files[name].SHA256 != "") || !isOwnedAndWritableBy(p, false, acct.UID) {
+				_ = releaseKernelCoreLock(p, false, acct.UID, acct.GID)
 			}
 		}
 	}
+
+	// 4. Remove Fortress direct-FS MU bridge (no longer needed when Core is owned by <user>) & ensure wp-content/** is customer-owned
+	muBridgePath := filepath.Join(verifiedDocRoot, "wp-content", "mu-plugins", fortressDirectFSMUFile)
+	if st, lErr := os.Lstat(muBridgePath); lErr == nil && st.Mode()&os.ModeSymlink == 0 {
+		_ = os.Remove(muBridgePath)
+	}
+	_ = EnsureCustomerWPContentOwned(guard, acct, verifiedDocRoot)
 
 	l.mu.Lock()
 	delete(l.locked, inst.ID)
 	l.mu.Unlock()
 	return nil
+}
+
+// NeedsCoreOwnershipRepair reports whether DocRoot or canonical WordPress Core files are not owned/writable by acct.UID
+// (e.g., left locked as root:<user> when CoreShieldMode is NOT fortress_lock).
+func NeedsCoreOwnershipRepair(acct dausers.Account, verifiedDocRoot string) bool {
+	if !isOwnedAndWritableBy(verifiedDocRoot, true, acct.UID) {
+		return true
+	}
+	dirChecks := []string{
+		filepath.Join(verifiedDocRoot, "wp-admin"),
+		filepath.Join(verifiedDocRoot, "wp-admin", "includes"),
+		filepath.Join(verifiedDocRoot, "wp-includes"),
+	}
+	for _, d := range dirChecks {
+		if st, err := os.Lstat(d); err == nil && st.IsDir() && st.Mode()&os.ModeSymlink == 0 {
+			if !isOwnedAndWritableBy(d, true, acct.UID) {
+				return true
+			}
+		}
+	}
+	fileChecks := []string{
+		filepath.Join(verifiedDocRoot, "index.php"),
+		filepath.Join(verifiedDocRoot, "wp-load.php"),
+		filepath.Join(verifiedDocRoot, "wp-settings.php"),
+		filepath.Join(verifiedDocRoot, "wp-admin", "admin.php"),
+		filepath.Join(verifiedDocRoot, "wp-admin", "includes", "file.php"),
+		filepath.Join(verifiedDocRoot, "wp-includes", "version.php"),
+	}
+	for _, f := range fileChecks {
+		if st, err := os.Lstat(f); err == nil && st.Mode().IsRegular() && st.Mode()&os.ModeSymlink == 0 {
+			if !isOwnedAndWritableBy(f, false, acct.UID) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// EnsureCustomerWPContentOwned ensures wp-content and its upgrade/extension directories exist and are owned/writable
+// by <user>:<user> (acct.UID:acct.GID) so native wp-admin updates never fail WP_Upgrader::fs_connect() or prompt for FTP.
+func EnsureCustomerWPContentOwned(guard *fsguard.Guard, acct dausers.Account, verifiedDocRoot string) error {
+	wpContent := filepath.Join(verifiedDocRoot, "wp-content")
+	if _, err := guard.VerifyProspectivePath(wpContent); err != nil {
+		return err
+	}
+	if err := ensureCustomerDirNoSymlink(wpContent, acct.UID, acct.GID); err != nil {
+		return err
+	}
+
+	// WordPress WP_Upgrader always stages downloads in wp-content/upgrade; ensure it exists and is customer-owned.
+	upgradeDir := filepath.Join(wpContent, "upgrade")
+	if _, err := guard.VerifyProspectivePath(upgradeDir); err == nil {
+		_ = ensureCustomerDirNoSymlink(upgradeDir, acct.UID, acct.GID)
+	}
+
+	for _, sub := range []string{"upgrade", "plugins", "themes", "languages", "mu-plugins"} {
+		subDir := filepath.Join(wpContent, sub)
+		st, err := os.Lstat(subDir)
+		if err != nil || st.Mode()&os.ModeSymlink != 0 || !st.IsDir() {
+			continue
+		}
+		_ = repairCustomerTreeIfNeeded(subDir, acct.UID, acct.GID)
+	}
+
+	uploadsDir := filepath.Join(wpContent, "uploads")
+	if st, err := os.Lstat(uploadsDir); err == nil && st.IsDir() && st.Mode()&os.ModeSymlink == 0 {
+		if !isOwnedAndWritableBy(uploadsDir, true, acct.UID) {
+			_ = repairCustomerTreeIfNeeded(uploadsDir, acct.UID, acct.GID)
+		}
+	}
+	return nil
+}
+
+func ensureCustomerDirNoSymlink(dirPath string, uid, gid uint32) error {
+	st, err := os.Lstat(dirPath)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if mkErr := os.Mkdir(dirPath, 0o755); mkErr != nil && !errors.Is(mkErr, os.ErrExist) {
+			return mkErr
+		}
+		return releaseKernelCoreLock(dirPath, true, uid, gid)
+	}
+	if st.Mode()&os.ModeSymlink != 0 {
+		return fsguard.ErrSymlinkBlocked
+	}
+	if !st.IsDir() {
+		return fmt.Errorf("expected directory at %s", dirPath)
+	}
+	if !isOwnedAndWritableBy(dirPath, true, uid) {
+		return releaseKernelCoreLock(dirPath, true, uid, gid)
+	}
+	return nil
+}
+
+func repairCustomerTreeIfNeeded(rootDir string, uid, gid uint32) error {
+	return filepath.WalkDir(rootDir, func(cur string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		isDir := d.IsDir()
+		if !isDir && !d.Type().IsRegular() {
+			return nil
+		}
+		if !isOwnedAndWritableBy(cur, isDir, uid) {
+			_ = releaseKernelCoreLock(cur, isDir, uid, gid)
+		}
+		return nil
+	})
 }
 
 // IsLockedInMemory reports whether CoreLocker currently holds an active OS lock for instanceID.

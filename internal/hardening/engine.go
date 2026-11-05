@@ -838,7 +838,18 @@ func normalizeInstancePermissions(guard *fsguard.Guard, acct dausers.Account, ve
 		}
 		_ = chownNoFollow(cfgPath, acct.UID, acct.GID)
 	}
-	for _, sub := range []string{"", "wp-admin", "wp-includes", "wp-content", filepath.Join("wp-content", "uploads")} {
+	for _, sub := range []string{
+		"",
+		"wp-admin",
+		"wp-includes",
+		"wp-content",
+		filepath.Join("wp-content", "upgrade"),
+		filepath.Join("wp-content", "plugins"),
+		filepath.Join("wp-content", "themes"),
+		filepath.Join("wp-content", "languages"),
+		filepath.Join("wp-content", "mu-plugins"),
+		filepath.Join("wp-content", "uploads"),
+	} {
 		p := verifiedDocRoot
 		if sub != "" {
 			p = filepath.Join(verifiedDocRoot, sub)
@@ -846,8 +857,9 @@ func normalizeInstancePermissions(guard *fsguard.Guard, acct dausers.Account, ve
 		if _, vErr := guard.VerifyExistingPath(p); vErr != nil {
 			continue
 		}
-		if st, err := os.Lstat(p); err == nil && st.IsDir() {
+		if st, err := os.Lstat(p); err == nil && st.IsDir() && st.Mode()&os.ModeSymlink == 0 {
 			_ = os.Chmod(p, 0o755)
+			_ = chownNoFollow(p, acct.UID, acct.GID)
 		}
 	}
 	return nil

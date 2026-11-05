@@ -8,6 +8,17 @@ func chownNoFollow(_ string, _, _ uint32) error {
 	return nil
 }
 
+func isOwnedAndWritableBy(path string, isDir bool, _ uint32) bool {
+	st, err := os.Lstat(path)
+	if err != nil || st.Mode()&os.ModeSymlink != 0 {
+		return false
+	}
+	if isDir {
+		return st.Mode().Perm()&0o200 != 0
+	}
+	return st.Mode().Perm()&0o200 != 0
+}
+
 func applyKernelCoreLock(path string, isDir bool, _ uint32) error {
 	if isDir {
 		return nil
