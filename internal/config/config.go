@@ -112,7 +112,7 @@ func ValidateSessionID(s string) error {
 	return nil
 }
 
-// ValidateInstanceID validates a toolkit WordPress instance identifier.
+// ValidateInstanceID validates a WordPress Manager instance identifier.
 func ValidateInstanceID(s string) error {
 	if len(s) < 4 || len(s) > 64 {
 		return errors.New("invalid instance ID length")

@@ -677,7 +677,7 @@ func (a *Adapter) renderNginxSnippet(acct dausers.Account, inst store.InstanceRe
 	if len(sections) == 0 {
 		return ""
 	}
-	header := fmt.Sprintf("# Managed by DA-WordPressToolkits for instance %s (%s%s)\n", inst.ID, inst.Domain, inst.SubPath)
+	header := fmt.Sprintf("# Managed by WordPress Manager for instance %s (%s%s)\n", inst.ID, inst.Domain, inst.SubPath)
 	return header + strings.Join(sections, "\n\n") + "\n"
 }
 

@@ -178,7 +178,7 @@ func (db *DB) Sync(ctx context.Context, overrideSource string) (Status, error) {
 			db.recordErr(err)
 			return db.Status(), err
 		}
-		req.Header.Set("User-Agent", "DA-WordPressToolkits-VulnSync/1.0")
+		req.Header.Set("User-Agent", "DA-WordPressManager-VulnSync/1.0")
 		req.Header.Set("Accept", "application/json")
 		req.Header.Set("Accept-Encoding", "gzip")
 

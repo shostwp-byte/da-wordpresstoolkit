@@ -12,5 +12,5 @@ if [ -x "${PLUGIN_DIR}/bundle/scripts/uninstall.sh" ]; then
     exit 0
 fi
 
-echo "DA WordPress Toolkits plugin uninstalled."
+echo "WordPress Manager plugin uninstalled."
 exit 0

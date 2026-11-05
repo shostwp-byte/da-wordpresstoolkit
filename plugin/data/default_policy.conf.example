@@ -1,4 +1,4 @@
-# Default Hosting Package Policy for DA-WordPressToolkits
+# Default Hosting Package Policy for WordPress Manager
 ENABLED=yes
 MAX_INSTANCES=0
 ALLOW_CLONE=yes

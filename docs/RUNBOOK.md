@@ -1,7 +1,7 @@
 # SỔ TAY VẬN HÀNH HỆ THỐNG & XỬ LÝ SỰ CỐ (`RUNBOOK.md`)
 
-**Dự án:** `DA-WordPressToolkits` (`da_wp_toolkits`)  
-**Phiên bản chính thức:** `v1.0.0`  
+**Dự án:** **WordPress Manager** (`da_wp_toolkits`)  
+**Phiên bản chính thức:** `v1.0.2`  
 **Đối tượng sử dụng:** Quản trị viên máy chủ Linux / Nhà cung cấp dịch vụ Hosting sử dụng DirectAdmin (`1.670+`, Evolution Skin)
 
 ---
@@ -41,7 +41,7 @@ sudo bash scripts/install.sh
 Có thể truyền biến môi trường để ghim phiên bản hoặc kho phát hành riêng:
 ```bash
 sudo DA_WPTK_REPO="shostwp-byte/da-wordpresstoolkit" \
-     DA_WPTK_VERSION="v1.0.0" \
+     DA_WPTK_VERSION="v1.0.2" \
      bash scripts/install.sh
 ```
 

@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="./plugin/images/user_icon.svg" alt="DA WordPress Toolkits" width="76" height="76" />
-  <h1>DA-WordPressToolkits</h1>
+  <img src="./plugin/images/user_icon.svg" alt="WordPress Manager" width="76" height="76" />
+  <h1>WordPress Manager</h1>
   <p><strong>Bộ Công Cụ Quản Trị Vòng Đời, Bảo Mật Đa Tầng &amp; Tự Phục Hồi WordPress cho DirectAdmin</strong></p>
 
   <p>
@@ -15,7 +15,7 @@
 
 ---
 
-**DA-WordPressToolkits** (`da_wp_toolkits`) là giải pháp quản trị WordPress gốc (**Native Linux Daemon + DirectAdmin Evolution Skin Plugin**) viết hoàn toàn bằng **Golang chuẩn (`CGO_ENABLED=0`, 0 thư viện ngoài trong `go.mod`)**, được thiết kế chuyên biệt cho nhà cung cấp Shared/Cloud Hosting và người dùng cuối với trải nghiệm tương đương **Plesk WordPress Toolkit**.
+**WordPress Manager** (`da_wp_toolkits`) là giải pháp quản trị WordPress gốc (**Native Linux Daemon + DirectAdmin Evolution Skin Plugin**) viết hoàn toàn bằng **Golang chuẩn (`CGO_ENABLED=0`, 0 thư viện ngoài trong `go.mod`)**, được thiết kế chuyên biệt cho nhà cung cấp Shared/Cloud Hosting và người dùng cuối trên DirectAdmin.
 
 <div align="center">
   <img src="./plan/assets/ui_reference_wptoolkit.png" alt="Giao diện WordPress Manager trên DirectAdmin Evolution Skin" width="920" />
@@ -26,7 +26,7 @@
 ## Điểm Khác Biệt Cốt Lõi
 
 - **Kiến trúc Siêu Nhẹ & Tự Chủ 100%:** Biên dịch thành một tệp thực thi tĩnh duy nhất (`~8.6 MB` trên `linux/amd64`, `~7.9 MB` trên `linux/arm64`), tiêu thụ `< 20 MB RAM` ở trạng thái nghỉ, không cần Node.js/Python/SQLite hay bất kỳ runtime phụ trợ nào trên máy chủ DirectAdmin.
-- **Giao Diện Fullwidth Chuẩn Plesk WordPress Toolkit:** Tích hợp mượt mà không viền hộp dư thừa trên **DirectAdmin Evolution Skin** cho cả Admin và End-User; hỗ trợ **Dark Mode**, song ngữ **Việt / Anh**, 3 chế độ hiển thị (*Cards / Grid / Compact List*), tự động thu gọn thẻ thông minh khi tài khoản có nhiều website kèm nút **Mở rộng / Thu gọn tất cả** và phản hồi giao diện `< 50ms`.
+- **Giao Diện Fullwidth Hiện Đại Chuẩn WordPress Manager:** Tích hợp mượt mà không viền hộp dư thừa trên **DirectAdmin Evolution Skin** cho cả Admin và End-User; hỗ trợ **Dark Mode**, song ngữ **Việt / Anh**, 3 chế độ hiển thị (*Cards / Grid / Compact List*), tự động thu gọn thẻ thông minh khi tài khoản có nhiều website kèm nút **Mở rộng / Thu gọn tất cả** và phản hồi giao diện `< 50ms`.
 - **Cập Nhật WordPress Core Hàng Loạt Tuần Tự (`Sequential Queue 1-by-1`):** Đối chiếu trực tiếp phiên bản mới nhất với `api.wordpress.org`, đưa nhiều website vào hàng đợi nâng cấp **tuần tự từng site một** để không gây đột biến CPU/RAM/Disk I/O, đồng thời **tự động bỏ qua** các site đã ở phiên bản mới nhất.
 - **Cập Nhật An Toàn Tự Hoàn Tác (`Smart Safe Update`):** Đối chiếu trực tiếp phiên bản mới của Plugins/Themes từ kho WordPress.org, tự động sao lưu trước khi nâng cấp, kiểm tra sức khỏe HTTP loopback sau cập nhật và **tự động Rollback dưới 3 giây** nếu phát hiện lỗi `HTTP 500` / PHP Fatal Error (WSOD).
 - **Tự Bảo Vệ & Phục Hồi Tức Thời (`Core Integrity Shield`):** Giám sát thời gian thực thư mục nhân WordPress qua `Linux inotify`, tự động cách ly mã độc/webshell lạ vào **Quarantine Vault** (kèm trình xem **Unified Diff**) và khôi phục tệp gốc từ **Local Verified Core Cache** trong `< 50ms` với quyền sở hữu chuẩn `<user>:<user>` (giúp cập nhật trực tiếp ngay trong `wp-admin` không bị hỏi tài khoản FTP), hoặc khóa cứng mức hệ điều hành với **Fortress Core Lock (`root:<user>`)**.
@@ -45,7 +45,7 @@
 | **Tác vụ nền Thời gian thực** | Thanh trạng thái **Live Task Banner** & ngăn kéo **Background Tasks Drawer** hiển thị rõ tác vụ nào đang chạy, phần trăm tiến độ, từng website đang nâng cấp / chờ lượt / bỏ qua / hoàn tất kèm chức năng dọn lịch sử tác vụ. |
 | **Core Integrity Shield** | 3 chế độ bảo vệ (*Monitor*, *Auto-Heal `< 50ms`*, *Fortress Core Lock `root:<user>`*), tự chuẩn hóa quyền `<user>:<user>` để `wp-admin` hoạt động mượt không hỏi FTP, **Anti-Thrashing Guard**, **Quarantine Unified Diff**, tự động mở/khóa khi chạy **DirectAdmin Backup Hooks**. |
 | **Đa Web Server Hardening** | Bộ **12 quy tắc gia cố bảo mật** một chạm, tự động sinh cấu hình chuẩn xác cho **Apache**, **LiteSpeed Enterprise**, **OpenLiteSpeed** (tự gom lệnh graceful reload chống nghẽn) và **Nginx Standalone** (kiểm tra `nginx -t` trước khi áp dụng). |
-| **Plesk Quick Tools** | Công tắc bật/tắt nhanh: *Search Engine Indexing*, *Caching (LSCache / Redis Object Cache cô lập `WP_CACHE_KEY_SALT`)*, *Maintenance Mode 503 tùy biến*, *Debugging (`WP_DEBUG` + trình đọc ngược 32 KB cuối `debug.log`)*, *HTTP Basic Auth `.htpasswd` ngoài `public_html`*, *Tiếp quản `wp-cron.php` sang System Cron DirectAdmin*. |
+| **Quick Tools** | Công tắc bật/tắt nhanh: *Search Engine Indexing*, *Caching (LSCache / Redis Object Cache cô lập `WP_CACHE_KEY_SALT`)*, *Maintenance Mode 503 tùy biến*, *Debugging (`WP_DEBUG` + trình đọc ngược 32 KB cuối `debug.log`)*, *HTTP Basic Auth `.htpasswd` ngoài `public_html`*, *Tiếp quản `wp-cron.php` sang System Cron DirectAdmin*. |
 | **Clone, Staging & Sync** | Nhân bản 1-Click sang Domain/Subdomain mới, tự động gắn `noindex` cho môi trường Staging, thay thế URL an toàn cho dữ liệu **PHP Serialized** & **Elementor JSON** (có xem trước *Dry-Run*), đồng bộ 2 chiều Staging ⇄ Production **bảo toàn đơn hàng & khách hàng WooCommerce**. |
 | **Zstd Snapshots & DB** | Sao lưu & khôi phục toàn phần (Mã nguồn + Database `.sql`) nén chuẩn **Zstandard (`.tar.zst` RFC 8878)** tính vào đúng hạn mức dung lượng người dùng, tải trực tiếp về máy tính, tự động xoay vòng bản cũ; tối ưu/sửa bảng DB và chỉnh sửa an toàn hằng số `wp-config.php`. |
 | **Server Admin Console** | Giao diện quản trị Fullwidth 4 Tab cho nhà cung cấp Hosting: *Tổng quan toàn máy chủ, Cập nhật WP Core/Smart Update toàn cục & Nhật ký bảo mật*, *Chính sách giới hạn theo Hosting Package & Global Sets*, *Kho đệm Core Cache & CSDL CVE*, *Tự động cập nhật từ GitHub Releases xác thực chữ ký số Ed25519*. |
@@ -91,7 +91,7 @@ flowchart LR
 ## Cấu Trúc Thư Mục Dự Án
 
 ```text
-DA-WordPressToolkits/
+da-wordpresstoolkit/
 ├── cmd/da-wptoolkit/         # Điểm vào CLI quản trị & tiến trình nền da-wptoolkitd
 ├── internal/
 │   ├── auth/                 # Xác thực IPC 3 lớp (SO_PEERCRED, /proc lineage, da_sess_*, HMAC CSRF)
@@ -162,7 +162,7 @@ Trình cài đặt `scripts/install.sh` tự động kiểm tra kiến trúc CPU
 
 ### Cập nhật phiên bản mới & Khôi phục (Self-Update & Instant Rollback)
 
-- **Trên giao diện DirectAdmin Admin:** Mở **DA WordPress Toolkits → Tab 4: Hệ thống & Cập nhật GitHub → Kiểm tra bản mới → Cập nhật nguyên tử** (tự động kiểm chứng chữ ký số `Ed25519` + `SHA-256` và sao lưu bản cũ).
+- **Trên giao diện DirectAdmin Admin:** Mở **WordPress Manager → Tab 4: Hệ thống & Cập nhật GitHub → Kiểm tra bản mới → Cập nhật nguyên tử** (tự động kiểm chứng chữ ký số `Ed25519` + `SHA-256` và sao lưu bản cũ).
 - **Qua dòng lệnh SSH (`root`):**
   ```bash
   da-wptoolkit check-update
@@ -234,7 +234,7 @@ da-wptoolkit rollback --list
 - [x] **Giai đoạn 1 (`v0.2.0`):** Bộ phân giải Domain/PHP DirectAdmin, lá chắn chống Symlink `fsguard`, Zero-Eval Auto-Discovery, Sandboxed WP-CLI, cấp phát Database & 1-Click Installer + Ephemeral SSO.
 - [x] **Giai đoạn 2 (`v0.3.0`):** Quản lý tập trung Plugins/Themes/Sets đơn site & đa site, cứu hộ WSOD, **Smart Safe Update** tự hoàn tác `< 3s` & cảnh báo lỗ hổng **Wordfence CVE Feed**.
 - [x] **Giai đoạn 3 (`v0.4.0`):** Bộ điều hợp Đa Web Server (Apache/LiteSpeed/OpenLiteSpeed/Nginx), 12 quy tắc gia cố bảo mật & **Core Integrity Shield** (`inotify` Auto-Heal + Quarantine Diff + Fortress Core Lock + Backup Hooks).
-- [x] **Giai đoạn 4 (`v0.5.0`):** Bộ công cụ **Plesk Quick Tools**, sao lưu nén **Zstd Snapshots (`.tar.zst`)** & nhân bản **Clone / Staging / Bidirectional Sync** bảo toàn đơn hàng WooCommerce.
+- [x] **Giai đoạn 4 (`v0.5.0`):** Bộ công cụ **Quick Tools**, sao lưu nén **Zstd Snapshots (`.tar.zst`)** & nhân bản **Clone / Staging / Bidirectional Sync** bảo toàn đơn hàng WooCommerce.
 - [x] **Giai đoạn 5 (`v0.6.0`):** Giao diện **End-User WordPress Manager SPA** (Indigo/Slate, Dark Mode, VI/EN, Chunked `.zip` Upload 64 MB) & **Server Admin Console 4 Tabs** trên Evolution Skin.
 - [x] **Giai đoạn 6 (`v1.0.0`):** Bộ **9 DirectAdmin Lifecycle Subdirectory Hooks**, trình tự động cập nhật xác thực chữ ký số **Ed25519 + Auto-Rollback `< 10s`**, Stress Test mật độ cao (`500` tài khoản / `1.000` site `< 25 MB RAM`) & phát hành `v1.0.0`.
 - [x] **Bản nâng cấp `v1.0.1`:** Giao diện **Fullwidth không viền** đồng bộ trên Evolution Skin (Admin & End-User), kiểm tra trạng thái & phiên bản mới của Plugins/Themes trực tiếp từ `api.wordpress.org`, tự động chuẩn hóa quyền sở hữu tệp `<user>:<user>` loại bỏ hoàn toàn hộp thoại yêu cầu FTP khi cập nhật trong `wp-admin`.
@@ -246,7 +246,7 @@ da-wptoolkit rollback --list
 
 - [Sổ Tay Vận Hành Hệ Thống & Xử Lý Sự Cố (`docs/RUNBOOK.md`)](./docs/RUNBOOK.md)
 - [Đặc Tả Giao Thức IPC & Xác Thực 3 Lớp (`docs/IPC_PROTOCOL.md`)](./docs/IPC_PROTOCOL.md)
-- [Đặc Tả Kỹ Thuật & Kế Hoạch Phát Triển Chi Tiết](./plan/Đặc%20Tả%20Kỹ%20Thuật%20&%20Kế%20Hoạch%20Phát%20Triển%20DA-WordPressToolkits.md)
+- [Đặc Tả Kỹ Thuật & Kế Hoạch Phát Triển Chi Tiết](./plan/Đặc%20Tả%20Kỹ%20Thuật%20&%20Kế%20Hoạch%20Phát%20Triển%20WordPress%20Manager.md)
 
 ---
 

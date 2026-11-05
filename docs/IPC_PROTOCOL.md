@@ -1,6 +1,6 @@
 # ĐẶC TẢ GIAO THỨC IPC & XÁC THỰC 3 LỚP (`IPC_PROTOCOL.md`)
 
-**Dự án:** `DA-WordPressToolkits`  
+**Dự án:** **WordPress Manager** (`da_wp_toolkits`)  
 **Phiên bản giao thức:** `1.0`  
 
 ---
@@ -70,7 +70,7 @@ Khi xảy ra lỗi xác thực, giới hạn tần suất hoặc lỗi nghiệp 
 
 ---
 
-## 4. Danh mục Action IPC (Giai đoạn 0, 1, 2, 3, 4, 5 & 6 — `v1.0.0`)
+## 4. Danh mục Action IPC (`v1.0.2`)
 
 ### 4.1. User Socket (`/var/run/da-wptoolkit-user.sock`)
 * `ping` *(Read-only)*: Kiểm tra kết nối phiên người dùng và cấp mới `csrf_token`.
@@ -80,11 +80,12 @@ Khi xảy ra lỗi xác thực, giới hạn tần suất hoặc lỗi nghiệp 
 * `list_plugins` / `list_themes` *(Read-only)*: Liệt kê toàn bộ Plugins hoặc Themes của 1 instance (dùng `--skip-plugins --skip-themes` an toàn ngay cả khi site bị lỗi trắng trang WSOD), đính kèm huy hiệu cảnh báo lỗ hổng **CVE** từ `vulndb`.
 * `list_all_plugins` / `list_all_themes` *(Read-only)*: Gom nhóm toàn bộ Plugins/Themes xuyên suốt mọi website của user phục vụ Global Tabs (`Plugins (N)` / `Themes (N)`).
 * `search_wporg` *(Read-only)*: Tìm kiếm trực tiếp kho Plugin/Theme chính thức của `api.wordpress.org` kèm kiểm tra trước cảnh báo CVE.
+* `check_core_updates` *(Read-only)*: Đối chiếu phiên bản WordPress hiện tại (`wp-includes/version.php`) của 1 hoặc toàn bộ website với bản mới nhất trên `api.wordpress.org/core/version-check/1.7/` và phiên bản PHP tối thiểu.
 * `get_vulns` *(Read-only)*: Trả về báo cáo chi tiết lỗ hổng CVE của Core, Plugins và Themes trên instance.
 * `get_security_status` *(Read-only)*: Kiểm tra điểm số bảo mật thực tế (`0..12`), trạng thái từng quy tắc trong **12 tiêu chí gia cố bảo mật**, loại Web Server hiện hành (`apache`/`litespeed`/`openlitespeed`/`nginx`/`nginx_apache`), chế độ **Core Integrity Shield** (`monitor`/`auto_heal`/`fortress_lock`), số tệp cách ly và danh sách ngoại lệ Whitelist.
 * `list_quarantine` / `get_quarantine_diff` *(Read-only)*: Xem danh sách các tệp bị cách ly trong **Quarantine Vault** của user kèm bản xem trước `Unified Diff` an toàn (`--- a/...` / `+++ b/...`) không thực thi mã PHP.
 * `list_whitelist` *(Read-only)*: Liệt kê các đường dẫn ngoại lệ Core Whitelist của 1 instance.
-* `get_tools_status` *(Read-only)*: Trả về trạng thái tổng hợp của 6 thẻ công cụ Plesk Quick Tools (`SearchIndexing`, `MaintenanceMode`, `DebugConfig`, `PasswordProtection`, `DisableWPCron` + `CronIntervalMin`, `CacheKind`, `SiteTitle`, `AdminUser`, `MemoryLimit`, `DBName`, `TablePrefix`).
+* `get_tools_status` *(Read-only)*: Trả về trạng thái tổng hợp của 6 thẻ công cụ Quick Tools (`SearchIndexing`, `MaintenanceMode`, `DebugConfig`, `PasswordProtection`, `DisableWPCron` + `CronIntervalMin`, `CacheKind`, `SiteTitle`, `AdminUser`, `MemoryLimit`, `DBName`, `TablePrefix`).
 * `read_debug_log` *(Read-only)*: Đọc ngược `32 KB` cuối cùng của tệp `wp-content/debug.log` (kèm cờ `truncated` và kích thước tệp) không gây tràn RAM khi log lớn nhiều GB.
 * `get_safe_wpconfig` *(Read-only)*: Đọc danh sách các hằng số cấu hình an toàn trong `wp-config.php` (`WP_MEMORY_LIMIT`, `WP_MAX_MEMORY_LIMIT`, `WP_POST_REVISIONS`, `AUTOSAVE_INTERVAL`, `EMPTY_TRASH_DAYS`, `FS_METHOD`, `WP_AUTO_UPDATE_CORE`) mà không để lộ thông tin nhạy cảm DB/Salts.
 * `list_snapshots` / `get_snapshot_download` *(Read-only)*: Liệt kê các bản sao lưu nhanh `.tar.zst` trong `/home/<user>/wp-snapshots/<instance_id>/` hoặc xác thực quyền sở hữu đường dẫn tệp nén (hỗ trợ `stream=1` trên `plugin/user/api.php` để tải trực tiếp tệp nhị phân về trình duyệt).
@@ -97,6 +98,8 @@ Khi xảy ra lỗi xác thực, giới hạn tần suất hoặc lỗi nghiệp 
 * `reset_admin_password` *(Mutating - Yêu cầu POST + CSRF)*: Đặt lại mật khẩu quản trị viên WordPress khẩn cấp qua `STDIN` của `wp eval`.
 * `manage_plugin` / `manage_theme` *(Mutating - Yêu cầu POST + CSRF)*: Bật (`activate`), Tắt cứu hộ WSOD (`deactivate`), Xóa (`delete`), Bật/Tắt tự động cập nhật (`autoupdate_on`/`autoupdate_off`), Cài từ kho WordPress.org (`install_slug`) và Cài từ gói `.zip` đã qua bộ kiểm duyệt chống Zip-Slip/Symlink/Zip-Bomb (`install_zip`).
 * `smart_update` / `bulk_smart_update` *(Mutating - Yêu cầu POST + CSRF)*: Thực thi **Smart Safe Update** đơn site hoặc hàng loạt đa site — tự động sao lưu thư mục trước cập nhật, kiểm tra sức khỏe HTTP nội bộ (`127.0.0.1`) + nhật ký lỗi PHP và **Auto-Rollback `< 3s`** khi phát hiện lỗi HTTP 500/Fatal Error (`TC-08`).
+* `update_wp_core` / `bulk_update_wp_core` *(Mutating - Yêu cầu POST + CSRF)*: Nâng cấp phiên bản WordPress Core đơn site hoặc đưa nhiều instance vào hàng đợi nâng cấp tuần tự (`1-by-1`), tự động bỏ qua site đã ở phiên bản mới nhất, kiểm tra tương thích PHP, tạm dừng/đồng bộ lại Core Shield và chuẩn hóa quyền `<user>:<user>`.
+* `clear_jobs` *(Mutating - Yêu cầu POST + CSRF)*: Dọn dẹp lịch sử các tác vụ nền đã hoàn tất/thất bại của người dùng (hoặc toàn cục trên Admin Socket).
 * `verify_core` *(Mutating - Yêu cầu POST + CSRF)*: Đối chiếu toàn vẹn mã băm SHA-256 của toàn bộ tệp Core WordPress với **Local Verified Core Cache**, tự động khôi phục nguyên tử (`< 50ms`) tệp Core bị sửa và rút tệp thực thi lạ trong `wp-admin`/`wp-includes` vào **Quarantine Vault** (`TC-04`).
 * `set_shield_mode` / `lock_core` / `unlock_core` *(Mutating - Yêu cầu POST + CSRF)*: Chuyển đổi chế độ tự bảo vệ Core giữa `monitor`, `auto_heal` và khóa cứng mức nhân Linux `fortress_lock` (`root:<user> 0644/0755`, tuân thủ chính sách gói Hosting).
 * `apply_hardening` / `revert_hardening` *(Mutating - Yêu cầu POST + CSRF)*: Áp dụng hoặc hoàn tác an toàn **12 quy tắc gia cố bảo mật WordPress** đa Web Server (`TC-07`: `.htaccess` + OpenLiteSpeed debounced graceful reload + Nginx snippet `nginx -t`).

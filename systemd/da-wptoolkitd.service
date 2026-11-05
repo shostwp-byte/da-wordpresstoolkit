@@ -1,5 +1,5 @@
 [Unit]
-Description=DirectAdmin WordPress Toolkit & Core Integrity Shield Daemon (da-wptoolkitd)
+Description=DirectAdmin WordPress Manager & Core Integrity Shield Daemon (da-wptoolkitd)
 Documentation=https://github.com/shostwp-byte/da-wordpresstoolkit
 After=network.target mariadb.service mysqld.service directadmin.service
 Wants=network.target

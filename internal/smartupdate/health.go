@@ -94,7 +94,7 @@ func DefaultLoopbackProber(ctx context.Context, inst store.InstanceRecord) Healt
 			continue
 		}
 		req.Host = parsed.Host
-		req.Header.Set("User-Agent", "DA-WordPressToolkits-SmartHealth/1.0")
+		req.Header.Set("User-Agent", "DA-WordPressManager-SmartHealth/1.0")
 		req.Header.Set("Cache-Control", "no-cache, no-store")
 
 		resp, doErr := client.Do(req)

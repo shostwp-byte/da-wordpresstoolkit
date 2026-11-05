@@ -1489,7 +1489,7 @@ func printUsage() {
 	fmt.Println("  da-wptoolkit shield-mode    Set Core Shield mode (--id <wp_id> --mode monitor|auto_heal|fortress_lock)")
 	fmt.Println("  da-wptoolkit harden         Check, apply, or revert 12 security hardening rules (<wp_id>)")
 	fmt.Println("  da-wptoolkit quarantine     Manage Quarantine Vault (list | diff | restore | delete)")
-	fmt.Println("  da-wptoolkit tools          Inspect or toggle Plesk Quick Tools, Cache, Cron & Debug Log (<wp_id>)")
+	fmt.Println("  da-wptoolkit tools          Inspect or toggle Quick Tools, Cache, Cron & Debug Log (<wp_id>)")
 	fmt.Println("  da-wptoolkit search-replace Serialized-safe DB Search & Replace with Dry-Run (<wp_id>)")
 	fmt.Println("  da-wptoolkit snapshot       Zstd (.tar.zst) Snapshot manager (list | create | restore | delete)")
 	fmt.Println("  da-wptoolkit clone          1-Click Clone / Staging with isolated WP_CACHE_KEY_SALT (<wp_id>)")
@@ -1612,7 +1612,7 @@ func runSelfUpdateCLI(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Updated DA-WordPressToolkits %s -> %s in %dms (backup: %s)\n", out.PreviousVersion, out.TargetVersion, out.ElapsedMs, out.BackupPath)
+	fmt.Printf("Updated WordPress Manager %s -> %s in %dms (backup: %s)\n", out.PreviousVersion, out.TargetVersion, out.ElapsedMs, out.BackupPath)
 	return nil
 }
 

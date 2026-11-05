@@ -68,11 +68,11 @@ jobs:
             gh release upload "$TAG" dist/release/* --clobber
           elif [[ "$TAG" == *"-"* ]]; then
             gh release create "$TAG" dist/release/* \
-              --title "DA-WordPressToolkits ${TAG}" \
+              --title "WordPress Manager ${TAG}" \
               --generate-notes \
               --prerelease
           else
             gh release create "$TAG" dist/release/* \
-              --title "DA-WordPressToolkits ${TAG}" \
+              --title "WordPress Manager ${TAG}" \
               --generate-notes
           fi

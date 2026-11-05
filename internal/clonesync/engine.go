@@ -144,7 +144,7 @@ func (e *Engine) Clone(
 	pol := e.resolvePolicy(acct.Package)
 	if !req.AdminBypass {
 		if !pol.Enabled {
-			return CloneResult{}, errors.New("WordPress Toolkit is disabled for your hosting package")
+			return CloneResult{}, errors.New("WordPress Manager is disabled for your hosting package")
 		}
 		if !pol.AllowClone {
 			return CloneResult{}, errors.New("WordPress Clone/Staging is disabled for your hosting package")
@@ -419,7 +419,7 @@ func (e *Engine) Sync(
 	pol := e.resolvePolicy(acct.Package)
 	if !req.AdminBypass {
 		if !pol.Enabled {
-			return SyncResult{}, errors.New("WordPress Toolkit is disabled for your hosting package")
+			return SyncResult{}, errors.New("WordPress Manager is disabled for your hosting package")
 		}
 		if !pol.AllowStagingSync {
 			return SyncResult{}, errors.New("staging sync is disabled for your hosting package")

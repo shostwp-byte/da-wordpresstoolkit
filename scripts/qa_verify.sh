@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ==============================================================================
-# QA & Production Acceptance Verification Suite for DA-WordPressToolkits v1.0.0
+# QA & Production Acceptance Verification Suite for WordPress Manager
 # ==============================================================================
 
 ADMIN_SOCK="${DA_WPTK_ADMIN_SOCK:-/var/run/da-wptoolkit.sock}"
@@ -79,8 +79,8 @@ case "$cmd" in
     echo "[9/10] Verifying Ed25519 GitHub Self-Updater & CLI subcommands..."
     "$BIN" --help >/dev/null
 
-    echo "[10/10] Production v1.0.0 Acceptance Preflight Completed."
-    echo "PASS: DA-WordPressToolkits v1.0.0 preflight verification succeeded."
+    echo "[10/10] Production Acceptance Preflight Completed."
+    echo "PASS: WordPress Manager preflight verification succeeded."
     ;;
   scan-all)
     "$BIN" scan --all --sock "$ADMIN_SOCK"

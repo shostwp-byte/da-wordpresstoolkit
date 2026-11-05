@@ -261,7 +261,7 @@ function call_user_daemon(string $sockPath, array $reqPayload): array
         emit_json([
             'ok'    => false,
             'code'  => 503,
-            'error' => "WordPress Toolkit service is temporarily unavailable ({$errstr}).",
+            'error' => "WordPress Manager service is temporarily unavailable ({$errstr}).",
         ], 200);
     }
     stream_set_timeout($fp, 60);

@@ -364,7 +364,7 @@ func (s *Shield) popSuppression(instanceID string) {
 	s.mu.Unlock()
 }
 
-// WithUpdatingSuppression pauses Core Auto-Heal on inst during authorized Toolkit updates/hardening,
+// WithUpdatingSuppression pauses Core Auto-Heal on inst during authorized WordPress Manager updates/hardening,
 // temporarily unlocking Core if Fortress Lock is enabled and re-locking immediately afterward.
 func (s *Shield) WithUpdatingSuppression(acct dausers.Account, inst store.InstanceRecord, fn func() error) error {
 	s.pushSuppression(inst.ID)

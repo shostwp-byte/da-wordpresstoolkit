@@ -20,7 +20,7 @@ const fortressDirectFSMUFile = "da-wptk-direct-fs.php"
 
 const fortressDirectFSMUCode = `<?php
 /**
- * Managed by DA-WordPressToolkits Fortress Core Lock.
+ * Managed by WordPress Manager Fortress Core Lock.
  * Preserves native 'direct' filesystem updates for wp-content (plugins, themes, languages)
  * while WordPress Core (wp-admin, wp-includes) is protected by root ownership.
  */

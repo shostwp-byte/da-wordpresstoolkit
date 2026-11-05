@@ -1253,7 +1253,7 @@ func TestPhase5AdminPoliciesCoreCachePruneAndGitHubUpdaterOverIPC(t *testing.T) 
 	ghServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuthHeader.Store(r.Header.Get("Authorization"))
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`[{"tag_name":"v1.2.0","name":"DA-WordPressToolkits v1.2.0","draft":false,"prerelease":false,"published_at":"2026-11-05T00:00:00Z","html_url":"https://github.com/shostwp-byte/da-wordpresstoolkit/releases/tag/v1.2.0","body":"### Highlights\n- Ed25519 Signed Release"}]`))
+		_, _ = w.Write([]byte(`[{"tag_name":"v1.2.0","name":"WordPress Manager v1.2.0","draft":false,"prerelease":false,"published_at":"2026-11-05T00:00:00Z","html_url":"https://github.com/shostwp-byte/da-wordpresstoolkit/releases/tag/v1.2.0","body":"### Highlights\n- Ed25519 Signed Release"}]`))
 	}))
 	defer ghServer.Close()
 

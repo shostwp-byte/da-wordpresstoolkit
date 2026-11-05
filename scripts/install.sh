@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ==============================================================================
-# DA-WordPressToolkits 1-Click Production Installer (DirectAdmin Evolution Skin)
+# WordPress Manager 1-Click Production Installer (DirectAdmin Evolution Skin)
 # Supports: CloudLinux / AlmaLinux / Rocky Linux 8-9, Ubuntu 20.04-24.04, Debian 11-12
 # Architectures: x86_64 (amd64), aarch64 (arm64)
 # ==============================================================================
@@ -82,7 +82,7 @@ else
       RESOLVED_VER="$LOCAL_CONF_TAG"
     fi
   fi
-  echo "[1/7] Downloading DA-WordPressToolkits release (${RESOLVED_VER} / ${TARGET_ARCH}) from GitHub..."
+  echo "[1/7] Downloading WordPress Manager release (${RESOLVED_VER} / ${TARGET_ARCH}) from GitHub..."
   if [[ "$RESOLVED_VER" == "latest" ]]; then
     DL_BASE="https://github.com/${REPO}/releases/latest/download"
   else
@@ -131,7 +131,7 @@ if [[ -r /proc/sys/fs/inotify/max_user_watches ]]; then
   CUR_WATCHES="$(cat /proc/sys/fs/inotify/max_user_watches)"
   if [[ "$CUR_WATCHES" -lt 524288 ]]; then
     cat >"$SYSCTL_FILE" <<'EOF'
-# Raised automatically by DA-WordPressToolkits for high-density Core Integrity Shield
+# Raised automatically by WordPress Manager for high-density Core Integrity Shield
 fs.inotify.max_user_watches = 524288
 fs.inotify.max_user_instances = 1024
 EOF
@@ -293,8 +293,8 @@ nohup "$BIN_DST" sync-vulndb >/dev/null 2>&1 &
 
 echo ""
 echo "=============================================================================="
-echo " DA-WordPressToolkits installed successfully!"
+echo " WordPress Manager installed successfully!"
 echo "   Version    : $("$BIN_DST" version)"
-echo "   User Panel : DirectAdmin Evolution Skin -> Extra Features -> WordPress Toolkit"
-echo "   Admin Panel: DirectAdmin Evolution Skin -> Admin -> DA WordPress Toolkits"
+echo "   User Panel : DirectAdmin Evolution Skin -> Extra Features -> WordPress Manager"
+echo "   Admin Panel: DirectAdmin Evolution Skin -> Admin -> WordPress Manager"
 echo "=============================================================================="

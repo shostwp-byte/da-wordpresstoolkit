@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ==============================================================================
-# DA-WordPressToolkits Multi-Arch Release & DirectAdmin Plugin Packager
+# WordPress Manager Multi-Arch Release & DirectAdmin Plugin Packager
 # Produces:
 #   - dist/release/da-wptoolkit-linux-amd64.tar.gz
 #   - dist/release/da-wptoolkit-linux-arm64.tar.gz

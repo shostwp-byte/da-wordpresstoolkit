@@ -142,7 +142,7 @@ func SetTablePrefix(content, newPrefix string) (string, bool) {
 }
 
 // HasRefreshedSalts checks whether all 8 WordPress security keys/salts are strong (>= 32 chars, non-placeholder)
-// and contain the toolkit refresh marker or strong non-default entropy.
+// and contain the WordPress Manager refresh marker or strong non-default entropy.
 func HasRefreshedSalts(content string) bool {
 	if strings.Contains(content, saltsMarkerComment) {
 		return true
@@ -184,7 +184,7 @@ func RegenerateSalts(content string) (string, error) {
 	return insertBeforeBootstrap(norm, strings.TrimSuffix(block.String(), "\n")), nil
 }
 
-// UnmarkSalts removes the toolkit salt marker comment while keeping the strong keys intact.
+// UnmarkSalts removes the WordPress Manager salt marker comment while keeping the strong keys intact.
 func UnmarkSalts(content string) (string, bool) {
 	norm := strings.ReplaceAll(content, "\r\n", "\n")
 	if !strings.Contains(norm, saltsMarkerComment) {

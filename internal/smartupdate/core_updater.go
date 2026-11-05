@@ -122,7 +122,7 @@ func (e *Engine) ResolveLatestWPCoreVersion(ctx context.Context, forceRefresh bo
 	if err != nil {
 		return "", "", fmt.Errorf("build wp.org version-check request: %w", err)
 	}
-	httpReq.Header.Set("User-Agent", "DA-WordPressToolkits/1.0")
+	httpReq.Header.Set("User-Agent", "DA-WordPressManager/1.0")
 
 	resp, err := client.Do(httpReq)
 	if err != nil {

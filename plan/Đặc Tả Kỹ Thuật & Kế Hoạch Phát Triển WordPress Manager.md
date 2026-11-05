@@ -1,6 +1,6 @@
-# ĐẶC TẢ KỸ THUẬT & KẾ HOẠCH PHÁT TRIỂN `DA-WordPressToolkits`
+# ĐẶC TẢ KỸ THUẬT & KẾ HOẠCH PHÁT TRIỂN `WordPress Manager`
 
-**Dự án:** Bộ Công Cụ Quản Trị, Bảo Mật & Tự Phục Hồi WordPress Đa Tầng cho DirectAdmin (`DA-WordPressToolkits`)  
+**Dự án:** Bộ Công Cụ Quản Trị, Bảo Mật & Tự Phục Hồi WordPress Đa Tầng cho DirectAdmin (`WordPress Manager` / `da_wp_toolkits`)  
 **Phiên bản kế hoạch:** 1.0  
 **Đối tượng sử dụng chính:** Người dùng cuối (End-User Hosting) + Bảng điều khiển quản trị gọn nhẹ cho SysAdmin  
 **Công nghệ chốt:** Golang Static Daemon (`CGO_ENABLED=0`, `bbolt` ACID Store) + Sandboxed `WP-CLI` (Per-UID & Multi-PHP) + DirectAdmin Evolution Skin UI (HTML5/CSS3/JS + `.raw` PHP CGI) + Ed25519 GitHub Self-Updater  
@@ -10,16 +10,16 @@
 ## 1. ĐỊNH HƯỚNG SẢN PHẨM & 8 CHỐT CHẶN KỸ THUẬT CỐT LÕI
 
 ### 1.1. Tầm nhìn sản phẩm
-Xây dựng một giải pháp **WordPress Toolkit gốc (Native)** tích hợp trực tiếp vào giao diện DirectAdmin Evolution Skin, mang lại trải nghiệm tương đương **Plesk WordPress Toolkit** cho khách hàng sử dụng dịch vụ Hosting, đồng thời giải quyết bài toán đau đầu nhất của nhà cung cấp Hosting: **mã nguồn WordPress bị chèn backdoor vào Core, plugin lỗi thời dính lỗ hổng CVE, và lỗi trắng trang (HTTP 500) khi khách hàng tự cập nhật**.
+Xây dựng một giải pháp **WordPress Manager gốc (Native)** tích hợp trực tiếp vào giao diện DirectAdmin Evolution Skin, mang lại trải nghiệm quản trị tập trung hiện đại cho khách hàng sử dụng dịch vụ Hosting, đồng thời giải quyết bài toán đau đầu nhất của nhà cung cấp Hosting: **mã nguồn WordPress bị chèn backdoor vào Core, plugin lỗi thời dính lỗ hổng CVE, và lỗi trắng trang (HTTP 500) khi khách hàng tự cập nhật**.
 
 Dự án tuân thủ đồng bộ chuẩn kỹ thuật và bảo mật trong hệ sinh thái SHOST (cùng chuẩn với `DA-ResourceLimiter`): chạy cực nhẹ (**< 1% CPU**, **< 25MB RAM** nền cho máy chủ 500 tài khoản), không phụ thuộc thư viện động trên OS đích (Debian 12, Ubuntu 22.04/24.04, AlmaLinux 8/9, Rocky Linux 8/9).
 
 ### 1.2. Tám (08) chốt chặn kỹ thuật & an toàn bắt buộc trên môi trường Multi-Tenant
 
 > [!IMPORTANT]
-> Khác với plugin chỉ đọc thông số tài nguyên, `DA-WordPressToolkits` thực thi các tác vụ ghi dữ liệu (tạo DB, sửa cấu hình, mở khoá Core, xoá Snapshot). Tám chốt chặn dưới đây được thiết kế để ngăn chặn tuyệt đối nguy cơ leo thang đặc quyền hoặc phá hoại chéo khi một website của khách bị nhiễm mã độc.
+> Khác với plugin chỉ đọc thông số tài nguyên, `WordPress Manager` thực thi các tác vụ ghi dữ liệu (tạo DB, sửa cấu hình, mở khoá Core, xoá Snapshot). Tám chốt chặn dưới đây được thiết kế để ngăn chặn tuyệt đối nguy cơ leo thang đặc quyền hoặc phá hoại chéo khi một website của khách bị nhiễm mã độc.
 
-| STT | Bẫy kỹ thuật trên Shared Hosting | Rủi ro thực tế nếu thiết kế ngây thơ | Giải pháp chuẩn hóa trong `DA-WordPressToolkits` |
+| STT | Bẫy kỹ thuật trên Shared Hosting | Rủi ro thực tế nếu thiết kế ngây thơ | Giải pháp chuẩn hóa trong `WordPress Manager` |
 | :--- | :--- | :--- | :--- |
 | **1** | **Web-Shell lạm dụng Unix Socket cùng UID** | Nếu chỉ kiểm tra `SO_PEERCRED.Uid`, khi 1 site của user bị RCE (chạy PHP-FPM dưới cùng `UID`), hacker có thể gọi thẳng vào Socket để tắt chế độ bảo vệ Core hoặc xoá hết Backup của các site khác chung tài khoản. | **Xác thực 3 lớp tại Daemon:** (1) `SO_PEERCRED` lấy `UID` + `PID` từ Kernel; (2) Kiểm tra cây tiến trình cha (`/proc/<pid>/stat` lineage bắt buộc xuất phát từ `/usr/local/directadmin/directadmin`, từ chối mọi tiến trình con của `php-fpm`/`lsphp`/SSH); (3) Đối chiếu `SESSION_ID` trực tiếp với `/usr/local/directadmin/data/sessions/da_sess_*` (`0600 diradmin:diradmin`, mã độc của user không thể đọc) kèm `CSRF HMAC-SHA256`. |
 | **2** | **Chạy `WP-CLI` sai quyền hoặc sai phiên bản PHP** | `wp-cli` thực thi trực tiếp `wp-config.php` và code PHP của plugin khách hàng. Chạy bằng `root` dẫn đến mất toàn bộ server; chạy bằng `/usr/bin/php` mặc định gây lỗi cú pháp nếu site yêu cầu PHP 8.1/8.3 hoặc bị kẹt do `disable_functions` khóa `proc_open`. | Bộ thực thi `internal/wpcli` tự động đọc `/usr/local/directadmin/data/users/<user>/domains/<domain>.conf` lấy đúng binary `/usr/local/phpXX/bin/php` của tên miền đó, hạ quyền xuống đúng `UID/GID` của user (`PR_SET_NO_NEW_PRIVS`), chống tấn công Symlink/TOCTOU (`O_NOFOLLOW` + kiểm chứng đường dẫn thật nằm trong `/home/<user>/domains/`) và mở riêng `-d disable_functions=""` trong phiên CLI có timeout cứng. |
@@ -90,10 +90,10 @@ flowchart TD
     Shield & SmartUpd --> ExtAPI
 ```
 
-### 2.2. Cấu trúc Monorepo chuẩn hóa (`DA-WordPressToolkits`)
+### 2.2. Cấu trúc Monorepo chuẩn hóa (`WordPress Manager`)
 
 ```text
-DA-WordPressToolkits/
+WordPress Manager/
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml                          # gofmt, staticcheck, go test -race, shellcheck
@@ -123,7 +123,7 @@ DA-WordPressToolkits/
 ├── plugin/                                 # Đóng gói vào /usr/local/directadmin/plugins/da_wp_toolkits/
 │   ├── plugin.conf                         # Khai báo metadata plugin với DirectAdmin
 │   ├── user/
-│   │   ├── index.html                      # Giao diện chính cho End-User kiểu Plesk WP Toolkit (Evolution Skin)
+│   │   ├── index.html                      # Giao diện chính WordPress Manager cho End-User (Evolution Skin)
 │   │   ├── api.raw                         # CGI wrapper gọi php -n api.php
 │   │   └── api.php                         # Relay xác thực CSRF + chuyển tiếp SESSION_ID qua User Socket
 │   ├── admin/
@@ -131,7 +131,7 @@ DA-WordPressToolkits/
 │   │   ├── api.raw                         # CGI wrapper cho Admin
 │   │   └── api.php                         # Relay qua Admin Socket (/var/run/da-wptoolkit.sock)
 │   ├── hooks/
-│   │   ├── user_img.html                   # Biểu tượng WordPress Toolkit trên menu Khách hàng
+│   │   ├── user_img.html                   # Biểu tượng WordPress Manager trên menu Khách hàng
 │   │   ├── user_txt.html
 │   │   ├── admin_img.html                  # Biểu tượng trên menu Quản trị viên
 │   │   └── admin_txt.html
@@ -186,7 +186,7 @@ DA-WordPressToolkits/
 
 ---
 
-### 3.2. Phân hệ 2: Bộ Công cụ Quản trị Kiểu Plesk WordPress Toolkit
+### 3.2. Phân hệ 2: Bộ Công cụ Quản trị WordPress Manager & Quick Tools
 
 Trên mỗi thẻ Website (Instance Card), người dùng cuối thao tác trực tiếp thông qua khu vực thông tin chung, thanh 6 công cụ tác vụ và lưới thẻ công tắc (Toggle Cards):
 
@@ -244,7 +244,7 @@ sequenceDiagram
 
     Attacker->>FS: Ghi đè wp-settings.php hoặc thả shell wp-includes/x.php
     Kernel-->>Shield: Phát sự kiện IN_CLOSE_WRITE / IN_MOVED_TO tức thời
-    Shield->>Shield: Kiểm tra cờ Maintenance/Update hợp lệ của Toolkit
+    Shield->>Shield: Kiểm tra cờ Maintenance/Update hợp lệ của WordPress Manager
     Shield->>Cache: Tra cứu bảng băm chuẩn SHA-256 (WP Version + Locale)
     alt Tệp Core chuẩn bị sửa đổi trái phép
         Shield->>Vault: Sao chép nguyên trạng bản bị nhiễm vào Quarantine (lưu Diff & Timestamp)
@@ -268,7 +268,7 @@ Hệ thống cung cấp **3 chế độ Bảo vệ Core** để người dùng c
    * Kết hợp giám sát sự kiện Kernel **`inotify`** (theo dõi thời gian thực thư mục gốc, `wp-admin/**` và `wp-includes/**` của các site đang bật bảo vệ) cùng bộ quét kiểm toán định kỳ (mỗi 30 phút) để đảm bảo không bỏ sót bất kỳ thay đổi nào kể cả khi khởi động lại dịch vụ.
    * **Kho Core Sạch Cục Bộ (`/var/cache/da-wptoolkit/wp-core/<ver>-<locale>/`):** Mỗi khi phát hiện phiên bản WordPress trên máy chủ, Daemon tải một lần gói chuẩn từ `wordpress.org`, đối chiếu bảng băm chính thức và lưu cache dùng chung cho toàn máy chủ. Nhờ đó, thao tác khôi phục tệp bị nhiễm diễn ra **offline dưới 50 mili-giây** mà không tốn băng thông tải lại.
    * **Cách ly An toàn (Quarantine Vault):** Mọi tệp bị sửa đổi hoặc tệp `.php`/`.phtml`/`.phar` lạ xuất hiện trong `wp-admin/` và `wp-includes/` đều được di chuyển vào kho cách ly bảo vệ bởi `root` (`/var/lib/da-wptoolkit/quarantine/<user>/<instance_id>/`). Người dùng có thể xem nội dung thay đổi (Diff Viewer chỉ đọc), xóa vĩnh viễn hoặc khôi phục lại kèm thêm vào **Whitelist ngoại lệ** nếu là tệp tùy biến có chủ đích.
-   * **Tạm dừng thông minh khi Cập nhật:** Khi người dùng bấm cập nhật WordPress qua `DA-WordPressToolkits`, Daemon tự động gắn cờ `Updating` cho riêng instance đó, cập nhật lại baseline phiên bản mới rồi kích hoạt giám sát trở lại liền mạch.
+   * **Tạm dừng thông minh khi Cập nhật:** Khi người dùng bấm cập nhật WordPress qua `WordPress Manager`, Daemon tự động gắn cờ `Updating` cho riêng instance đó, cập nhật lại baseline phiên bản mới rồi kích hoạt giám sát trở lại liền mạch.
 3. **Chế độ 3 — `Fortress Core Lock` (Khoá Cứng Core cấp độ Hệ điều hành):**
    * Dành cho các website doanh nghiệp, trang giới thiệu hoặc TMĐT muốn **chặn đứng 100% khả năng ghi vào Core ngay từ nhân Linux**: Daemon chuyển quyền sở hữu các tệp và thư mục Core (`wp-admin/`, `wp-includes/`, các tệp gốc `index.php`, `wp-load.php`, `wp-settings.php`,...) sang `root:<user>` (`0644` / `0755`), đồng thời giữ nguyên `<user>:<user>` cho toàn bộ `wp-content/` và `.htaccess`.
    * Website vẫn đọc, chạy giao diện, tải ảnh sản phẩm, ghi cache LiteSpeed/WooCommerce bình thường 100%, nhưng bất kỳ tiến trình PHP nào bị khai thác đều nhận lỗi `Permission denied` ngay lập tức khi cố sửa Core hoặc chèn shell vào `wp-admin`/`wp-includes`.
@@ -299,15 +299,15 @@ Hệ thống cung cấp **3 chế độ Bảo vệ Core** để người dùng c
 
 ---
 
-### 3.5. Phân hệ 5: Thiết kế Trải nghiệm Giao diện Chuẩn WordPress Toolkit (Evolution Skin UI)
+### 3.5. Phân hệ 5: Thiết kế Trải nghiệm Giao diện Chuẩn WordPress Manager (Evolution Skin UI)
 
 #### A. Giao diện Người dùng cuối (`/CMD_PLUGINS/da_wp_toolkits`)
-Thiết kế bám sát bố cục chuẩn **WordPress Manager / Plesk WordPress Toolkit** (sử dụng bảng màu Indigo `#4f46e5` / `#6366f1`, nền Slate sáng sạch `#f8fafc`, thẻ bo góc mềm `14px`, cô lập CSS hoàn toàn trong `#dawptk-root`, tương thích Widescreen & Mobile trên DirectAdmin Evolution Skin):
+Thiết kế bám sát bố cục chuẩn **WordPress Manager** (sử dụng bảng màu Indigo `#4f46e5` / `#6366f1`, nền Slate sáng sạch `#f8fafc`, thẻ bo góc mềm `14px`, cô lập CSS hoàn toàn trong `#dawptk-root`, tương thích Widescreen & Mobile trên DirectAdmin Evolution Skin):
 
-![Giao diện mẫu tham chiếu cho DA-WordPressToolkits](./assets/ui_reference_wptoolkit.png)
+![Giao diện mẫu tham chiếu cho WordPress Manager](./assets/ui_reference_wptoolkit.png)
 
 1. **Thanh Tiêu đề & 4 Tab Điều hướng Toàn cục (`Global Navigation Tabs`):**
-   * **Header:** Biểu tượng WordPress nền Indigo nhạt (`#eef2ff`), tiêu đề **WordPress Toolkit** kèm mô tả ngắn và nút **`Làm mới`** góc phải.
+   * **Header:** Biểu tượng WordPress nền Indigo nhạt (`#eef2ff`), tiêu đề **WordPress Manager** kèm mô tả ngắn và nút **`Làm mới`** góc phải.
    * **4 Tab Toàn cục (có huy hiệu đếm số lượng) + Ô Tìm kiếm Nhanh:**
      * **`Instances (N)`:** Danh sách toàn bộ website WordPress (Tên miền chính, Addon, Subdomain, Thư mục con).
      * **`Plugins (N)`:** Quản lý tập trung toàn bộ Plugins gom nhóm xuyên suốt mọi website của tài khoản (cập nhật hàng loạt 1-click, bật/tắt, cài mới, lọc theo cảnh báo lỗ hổng **CVE**).
@@ -432,8 +432,8 @@ Tổng thời gian phát triển dự kiến: **6 – 7 tuần**, chia làm 7 gi
 
 ---
 
-### GIAI ĐOẠN 4: Bộ Công cụ Plesk Quick Tools, Clone/Staging Sync & Zstd Snapshots (Tuần 4)
-* **Mục tiêu:** Hoàn thiện trọn bộ tính năng cao cấp tương đương Plesk WordPress Toolkit cho người dùng cuối.
+### GIAI ĐOẠN 4: Bộ Công cụ Quick Tools, Clone/Staging Sync & Zstd Snapshots (Tuần 4)
+* **Mục tiêu:** Hoàn thiện trọn bộ tính năng cao cấp chuẩn WordPress Manager cho người dùng cuối.
 * **Hạng mục công việc:**
   1. Triển khai bộ công tắc nhanh: Maintenance Mode (giao diện tùy chỉnh), Debug Mode + Log Viewer đọc ngược khối 32KB cuối file, Search Engine Indexing, HTTP Password Protection đa Web Server.
   2. Triển khai tính năng **Take over `wp-cron.php`** (đồng bộ trực tiếp với cấu hình Cronjob của tài khoản DirectAdmin) và quản lý **LiteSpeed Cache / Redis Object Cache**.

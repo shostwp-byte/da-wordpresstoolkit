@@ -39,7 +39,7 @@ func buildTestReleaseTarGz(t *testing.T, outTarGz string, binPayload string, con
 		mode int64
 	}{
 		"bin/da-wptoolkit":        {body: paddedBin, mode: 0o755},
-		"plugin/plugin.conf":      {body: "name=DA WordPress Toolkits\nid=da_wp_toolkits\nversion=" + confVer + "\n", mode: 0o644},
+		"plugin/plugin.conf":      {body: "name=WordPress Manager\nid=da_wp_toolkits\nversion=" + confVer + "\n", mode: 0o644},
 		"plugin/admin/index.html": {body: "#!/bin/sh\necho admin-" + confVer + "\n", mode: 0o755},
 		"plugin/user/index.html":  {body: "#!/bin/sh\necho user-" + confVer + "\n", mode: 0o755},
 		"scripts/da_hooks/domain_create_post.sh": {
@@ -158,7 +158,7 @@ func TestTC10Ed25519SignatureVerificationTamperBlockAndAutoRollback(t *testing.T
 				}
 			}
 			rels := []ghReleaseDTO{
-				{TagName: "v1.0.0", Name: "DA-WordPressToolkits v1.0.0", Body: "Production Release", Assets: mkAssets("healthy")},
+				{TagName: "v1.0.0", Name: "WordPress Manager v1.0.0", Body: "Production Release", Assets: mkAssets("healthy")},
 				{TagName: "v1.0.0-broken", Name: "Broken Startup Simulation", Prerelease: true, Assets: mkAssets("broken")},
 				{TagName: "v1.0.0-corrupt", Name: "Corrupt Tarball Simulation", Prerelease: true, Assets: mkAssets("corrupt")},
 				{TagName: "v1.0.0-forged", Name: "Forged Signature Simulation", Prerelease: true, Assets: mkAssets("forged")},

@@ -2,7 +2,7 @@
 set -uo pipefail
 
 # ==============================================================================
-# DA-WordPressToolkits Detached Atomic Updater & Auto-Rollback Runner (TC-10)
+# WordPress Manager Detached Atomic Updater & Auto-Rollback Runner (TC-10)
 # Executed outside da-wptoolkitd.service cgroup via systemd-run so restarting
 # da-wptoolkitd never interrupts the atomic swap or healthcheck/auto-rollback!
 # ==============================================================================

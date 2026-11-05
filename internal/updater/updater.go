@@ -228,7 +228,7 @@ func (m *Manager) CheckLatest(ctx context.Context, cfg config.UpdaterConfig, req
 		return ReleaseInfo{}, err
 	}
 	httpReq.Header.Set("Accept", "application/vnd.github+json")
-	httpReq.Header.Set("User-Agent", "DA-WordPressToolkits/"+curVer)
+	httpReq.Header.Set("User-Agent", "DA-WordPressManager/"+curVer)
 	if cfg.GitHubToken != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+cfg.GitHubToken)
 	}
@@ -678,7 +678,7 @@ func (m *Manager) ApplyStagedWithAutoRollback(ctx context.Context, stagedPayload
 	outcome.ElapsedMs = time.Since(start).Milliseconds()
 	outcome.CompletedAt = time.Now().UTC()
 	m.saveOutcome(outcome)
-	m.recordSecurityEvent("info", fmt.Sprintf("Successfully updated DA-WordPressToolkits %s -> %s (%dms)", curVer, targetVersion, outcome.ElapsedMs))
+	m.recordSecurityEvent("info", fmt.Sprintf("Successfully updated WordPress Manager %s -> %s (%dms)", curVer, targetVersion, outcome.ElapsedMs))
 	return outcome, nil
 }
 
@@ -846,7 +846,7 @@ func (m *Manager) downloadSmallBytes(ctx context.Context, urlStr, token string, 
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "DA-WordPressToolkits/"+version.Version)
+	req.Header.Set("User-Agent", "DA-WordPressManager/"+version.Version)
 	if useOctetStream {
 		req.Header.Set("Accept", "application/octet-stream")
 	}
@@ -877,7 +877,7 @@ func (m *Manager) downloadAndHashFile(ctx context.Context, urlStr, token string,
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "DA-WordPressToolkits/"+version.Version)
+	req.Header.Set("User-Agent", "DA-WordPressManager/"+version.Version)
 	if useOctetStream {
 		req.Header.Set("Accept", "application/octet-stream")
 	}

@@ -416,7 +416,7 @@ func (s *Service) queryGitHubLatestRelease(ctx context.Context, cfg config.Updat
 		return nil, err
 	}
 	httpReq.Header.Set("Accept", "application/vnd.github+json")
-	httpReq.Header.Set("User-Agent", "DA-WordPressToolkits/"+version.Version)
+	httpReq.Header.Set("User-Agent", "DA-WordPressManager/"+version.Version)
 	if cfg.GitHubToken != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+cfg.GitHubToken)
 	}

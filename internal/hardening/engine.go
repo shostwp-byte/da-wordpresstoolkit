@@ -807,7 +807,7 @@ func (e *Engine) syncSecurityMUPlugin(
 
 	var php strings.Builder
 	php.WriteString("<?php\n")
-	php.WriteString("/**\n * Managed by DA-WordPressToolkits Security Hardener.\n */\n")
+	php.WriteString("/**\n * Managed by WordPress Manager Security Hardener.\n */\n")
 	php.WriteString("if ( ! defined( 'ABSPATH' ) ) { exit; }\n\n")
 
 	if userEnumOn {

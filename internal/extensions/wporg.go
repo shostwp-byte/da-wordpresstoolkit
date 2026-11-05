@@ -86,7 +86,7 @@ func (m *Manager) SearchWPOrg(ctx context.Context, kind, search string, page, pe
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "DA-WordPressToolkits/1.0")
+	req.Header.Set("User-Agent", "DA-WordPressManager/1.0")
 
 	client := m.HTTPClient
 	if client == nil {
@@ -377,7 +377,7 @@ func (m *Manager) fetchWPOrgLatestVersion(ctx context.Context, slug string, isPl
 	if rErr != nil {
 		return "", false, rErr
 	}
-	req.Header.Set("User-Agent", "DA-WordPressToolkits/1.0")
+	req.Header.Set("User-Agent", "DA-WordPressManager/1.0")
 
 	client := m.HTTPClient
 	if client == nil {

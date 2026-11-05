@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ==============================================================================
-# DA-WordPressToolkits Safe Production Uninstaller
+# WordPress Manager Safe Production Uninstaller
 # Safely unlocks any Fortress Core Lock (root:<user>) sites BEFORE stopping daemon,
 # removes Nginx snippets & DirectAdmin hooks, and preserves backups unless --purge-data.
 # ==============================================================================
@@ -116,4 +116,4 @@ else
   echo "[5/5] Preserved state store & quarantine/backups at ${STATE_DIR} (pass --purge-data to remove)."
 fi
 
-echo "DA-WordPressToolkits uninstalled cleanly."
+echo "WordPress Manager uninstalled cleanly."

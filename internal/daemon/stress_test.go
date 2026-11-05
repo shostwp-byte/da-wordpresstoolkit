@@ -68,7 +68,7 @@ func makeSignedReleaseBundleForDaemonTest(t *testing.T, dir string, privKeyHex s
 	padded := binContent + "\n" + strings.Repeat("#PAD#", 300)
 	items := map[string]string{
 		"bin/da-wptoolkit":       padded,
-		"plugin/plugin.conf":     "name=DA WordPress Toolkits\nid=da_wp_toolkits\nversion=" + ver + "\n",
+		"plugin/plugin.conf":     "name=WordPress Manager\nid=da_wp_toolkits\nversion=" + ver + "\n",
 		"plugin/user/index.html": "#!/bin/sh\necho user-" + ver + "\n",
 	}
 	for name, body := range items {
