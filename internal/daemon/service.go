@@ -127,6 +127,10 @@ func (s *Service) HandleAdminRequest(ctx context.Context, cred auth.PeerCred, re
 			cacheStatus = s.Shield.Cache.Status()
 			activeWatches, maxWatches = s.Shield.WatchStats()
 		}
+		var adminJobs []store.JobRecord
+		if s.Jobs != nil {
+			adminJobs = s.Jobs.ListJobs("", true, 15)
+		}
 		return ipc.Response{
 			OK:        true,
 			CSRFToken: issuedCSRF,
@@ -142,6 +146,7 @@ func (s *Service) HandleAdminRequest(ctx context.Context, cred auth.PeerCred, re
 				"vulndb":                 vStatus,
 				"core_cache":             cacheStatus,
 				"recent_security_events": s.Store.RecentSecurityEvents(20),
+				"jobs":                   adminJobs,
 			},
 		}
 
@@ -359,6 +364,55 @@ func (s *Service) HandleAdminRequest(ctx context.Context, cred auth.PeerCred, re
 			issuedCSRF,
 		)
 
+	case "check_core_updates":
+		if s.SmartUpdate == nil {
+			return ipc.Response{OK: false, Code: 503, Error: "smart update engine is not configured"}
+		}
+		var defaultIDs []string
+		for _, it := range s.Store.ListAllInstances(false) {
+			if strings.TrimSpace(req.Username) != "" && it.Owner != strings.TrimSpace(req.Username) {
+				continue
+			}
+			defaultIDs = append(defaultIDs, it.ID)
+		}
+		return s.dispatchCheckCoreUpdates(
+			ctx,
+			defaultIDs,
+			func(instID string) (dausers.Account, error) {
+				_, acct, rErr := s.resolveAdminInstanceAndOwner(instID)
+				return acct, rErr
+			},
+			req,
+			issuedCSRF,
+		)
+
+	case "update_wp_core", "bulk_update_wp_core":
+		if s.SmartUpdate == nil {
+			return ipc.Response{OK: false, Code: 503, Error: "smart update engine is not configured"}
+		}
+		ownerName := strings.TrimSpace(req.Username)
+		if ownerName == "" {
+			ownerName = "admin"
+		}
+		var defaultIDs []string
+		for _, it := range s.Store.ListAllInstances(false) {
+			if strings.TrimSpace(req.Username) != "" && it.Owner != strings.TrimSpace(req.Username) {
+				continue
+			}
+			defaultIDs = append(defaultIDs, it.ID)
+		}
+		return s.dispatchBulkCoreUpdate(
+			ctx,
+			ownerName,
+			defaultIDs,
+			func(instID string) (dausers.Account, error) {
+				_, acct, rErr := s.resolveAdminInstanceAndOwner(instID)
+				return acct, rErr
+			},
+			req,
+			issuedCSRF,
+		)
+
 	case "list_sets":
 		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"sets": s.Store.ListSetsForOwner(strings.TrimSpace(req.Username))}}
 
@@ -385,6 +439,16 @@ func (s *Service) HandleAdminRequest(ctx context.Context, cred auth.PeerCred, re
 			return ipc.Response{OK: false, Code: 404, Error: jErr.Error()}
 		}
 		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: job}
+
+	case "clear_jobs":
+		ownerFilter := strings.TrimSpace(req.Username)
+		removed := 0
+		var jobs []store.JobRecord
+		if s.Jobs != nil {
+			removed = s.Jobs.ClearCompletedJobs(ownerFilter, true)
+			jobs = s.Jobs.ListJobs(ownerFilter, true, req.Limit)
+		}
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"removed": removed, "jobs": jobs}}
 
 	case "get_security_events":
 		return ipc.Response{
@@ -799,6 +863,49 @@ func (s *Service) HandleUserRequest(ctx context.Context, cred auth.PeerCred, req
 			issuedCSRF,
 		)
 
+	case "check_core_updates":
+		if s.SmartUpdate == nil {
+			return ipc.Response{OK: false, Code: 503, Error: "smart update engine is not configured"}
+		}
+		var defaultIDs []string
+		for _, it := range s.Store.ListInstancesByOwner(caller.Username) {
+			defaultIDs = append(defaultIDs, it.ID)
+		}
+		return s.dispatchCheckCoreUpdates(
+			ctx,
+			defaultIDs,
+			func(instID string) (dausers.Account, error) {
+				if _, gErr := s.Store.GetInstanceForOwner(instID, caller.Username); gErr != nil {
+					return dausers.Account{}, errors.New("WordPress instance not found or access denied")
+				}
+				return caller.Account, nil
+			},
+			req,
+			issuedCSRF,
+		)
+
+	case "update_wp_core", "bulk_update_wp_core":
+		if s.SmartUpdate == nil {
+			return ipc.Response{OK: false, Code: 503, Error: "smart update engine is not configured"}
+		}
+		var defaultIDs []string
+		for _, it := range s.Store.ListInstancesByOwner(caller.Username) {
+			defaultIDs = append(defaultIDs, it.ID)
+		}
+		return s.dispatchBulkCoreUpdate(
+			ctx,
+			caller.Username,
+			defaultIDs,
+			func(instID string) (dausers.Account, error) {
+				if _, gErr := s.Store.GetInstanceForOwner(instID, caller.Username); gErr != nil {
+					return dausers.Account{}, errors.New("WordPress instance not found or access denied")
+				}
+				return caller.Account, nil
+			},
+			req,
+			issuedCSRF,
+		)
+
 	case "list_sets":
 		return ipc.Response{
 			OK:        true,
@@ -848,6 +955,15 @@ func (s *Service) HandleUserRequest(ctx context.Context, cred auth.PeerCred, req
 			return ipc.Response{OK: false, Code: 404, Error: "job not found"}
 		}
 		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: job}
+
+	case "clear_jobs":
+		removed := 0
+		var jobs []store.JobRecord
+		if s.Jobs != nil {
+			removed = s.Jobs.ClearCompletedJobs(caller.Username, false)
+			jobs = s.Jobs.ListJobs(caller.Username, false, req.Limit)
+		}
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"removed": removed, "jobs": jobs}}
 
 	case "detach_instance":
 		inst, gErr := s.Store.GetInstanceForOwner(strings.TrimSpace(req.InstanceID), caller.Username)
@@ -987,19 +1103,31 @@ func (s *Service) dispatchSmartUpdate(
 		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: outcome}
 	}
 
-	jobRec, err := s.Jobs.Enqueue(
-		"smart_update",
-		acct.Username,
-		inst.ID,
-		"Running Smart Safe Update on "+inst.Domain+inst.SubPath,
-		func(jobCtx context.Context, report store.ProgressReporter) error {
-			outcome, uErr := s.SmartUpdate.UpdateInstance(jobCtx, acct, updReq, report)
+	targetLabel := inst.Domain + inst.SubPath
+	jobRec, err := s.Jobs.EnqueueWithMeta(
+		store.JobMeta{
+			Type:        "smart_update",
+			Title:       "Smart Safe Update Plugins/Themes",
+			Target:      targetLabel,
+			Owner:       acct.Username,
+			InstanceID:  inst.ID,
+			InitialStep: "Đang chạy Smart Safe Update trên " + targetLabel,
+		},
+		func(jobCtx context.Context, ctrl *store.JobController) error {
+			outcome, uErr := s.SmartUpdate.UpdateInstance(jobCtx, acct, updReq, ctrl.Report)
 			if uErr != nil {
 				return uErr
 			}
 			if outcome.RolledBack {
-				// Signal rolled_back status clearly in job message without crashing job runner
-				report(100, fmt.Sprintf("Auto-rolled back %v (%s)", outcome.CulpritSlugs, outcome.FaultReason))
+				summary := fmt.Sprintf("Đã tự hoàn tác an toàn %v (%s)", outcome.CulpritSlugs, outcome.FaultReason)
+				ctrl.MarkRolledBack(summary)
+				ctrl.Report(100, summary)
+				return nil
+			}
+			if outcome.Status == "noop" {
+				ctrl.SetSummary("Tất cả Plugins & Themes đã ở phiên bản mới nhất")
+			} else {
+				ctrl.SetSummary(fmt.Sprintf("Đã cập nhật an toàn %d plugin, %d theme trên %s", len(outcome.UpdatedPlugins), len(outcome.UpdatedThemes), targetLabel))
 			}
 			return nil
 		},
@@ -1041,14 +1169,133 @@ func (s *Service) dispatchBulkSmartUpdate(
 		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: out}
 	}
 
-	jobRec, err := s.Jobs.Enqueue(
-		"bulk_smart_update",
-		jobOwner,
-		"",
-		fmt.Sprintf("Running Bulk Smart Safe Update across %d site(s)", len(bulkReq.InstanceIDs)),
-		func(jobCtx context.Context, report store.ProgressReporter) error {
-			_, bErr := s.SmartUpdate.RunBulkUpdate(jobCtx, resolveOwner, bulkReq, report)
+	jobRec, err := s.Jobs.EnqueueWithMeta(
+		store.JobMeta{
+			Type:        "bulk_smart_update",
+			Title:       fmt.Sprintf("Smart Safe Update hàng loạt (%d site)", len(bulkReq.InstanceIDs)),
+			Target:      fmt.Sprintf("%d website", len(bulkReq.InstanceIDs)),
+			Owner:       jobOwner,
+			InitialStep: fmt.Sprintf("Đang cập nhật Plugins/Themes trên %d website...", len(bulkReq.InstanceIDs)),
+		},
+		func(jobCtx context.Context, ctrl *store.JobController) error {
+			_, bErr := s.SmartUpdate.RunBulkUpdateWithController(jobCtx, resolveOwner, bulkReq, ctrl, ctrl.Report)
 			return bErr
+		},
+	)
+	if err != nil {
+		return ipc.Response{OK: false, Code: 429, Error: err.Error()}
+	}
+	return ipc.Response{
+		OK:        true,
+		CSRFToken: issuedCSRF,
+		JobID:     jobRec.ID,
+		Data:      jobRec,
+	}
+}
+
+func (s *Service) dispatchCheckCoreUpdates(
+	ctx context.Context,
+	defaultInstanceIDs []string,
+	resolveOwner func(instanceID string) (dausers.Account, error),
+	req ipc.Request,
+	issuedCSRF string,
+) ipc.Response {
+	ids := paramStringSlice(req.Params, "instance_ids")
+	if len(ids) == 0 && strings.TrimSpace(req.InstanceID) != "" {
+		ids = []string{strings.TrimSpace(req.InstanceID)}
+	}
+	if len(ids) == 0 {
+		ids = defaultInstanceIDs
+	}
+	targetVer := paramString(req.Params, "target_version")
+	forceRefresh := paramBool(req.Params, "force_refresh", false)
+
+	summary, err := s.SmartUpdate.CheckCoreUpdates(ctx, resolveOwner, ids, targetVer, forceRefresh)
+	if err != nil {
+		return ipc.Response{OK: false, Code: 502, Error: err.Error()}
+	}
+	return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: summary}
+}
+
+func (s *Service) dispatchBulkCoreUpdate(
+	ctx context.Context,
+	jobOwner string,
+	defaultInstanceIDs []string,
+	resolveOwner func(instanceID string) (dausers.Account, error),
+	req ipc.Request,
+	issuedCSRF string,
+) ipc.Response {
+	ids := paramStringSlice(req.Params, "instance_ids")
+	if len(ids) == 0 && strings.TrimSpace(req.InstanceID) != "" {
+		ids = []string{strings.TrimSpace(req.InstanceID)}
+	}
+	if len(ids) == 0 && paramBool(req.Params, "all_instances", false) {
+		ids = defaultInstanceIDs
+	}
+	if len(ids) == 0 {
+		return ipc.Response{OK: false, Code: 400, Error: "instance_ids is required"}
+	}
+
+	coreReq := smartupdate.BulkCoreUpdateRequest{
+		InstanceIDs:   ids,
+		TargetVersion: paramString(req.Params, "target_version"),
+	}
+
+	if paramBool(req.Params, "sync", false) || s.Jobs == nil {
+		out, err := s.SmartUpdate.RunSequentialBulkCoreUpdate(ctx, "", resolveOwner, coreReq, nil)
+		if err != nil {
+			return ipc.Response{OK: false, Code: 400, Error: err.Error()}
+		}
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: out}
+	}
+
+	initialItems := make([]store.JobItemResult, 0, len(ids))
+	seen := make(map[string]struct{}, len(ids))
+	for _, raw := range ids {
+		id := strings.TrimSpace(raw)
+		if id == "" {
+			continue
+		}
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		dom := id
+		if inst, gErr := s.Store.GetInstance(id); gErr == nil {
+			dom = inst.Domain + inst.SubPath
+		}
+		initialItems = append(initialItems, store.JobItemResult{
+			InstanceID: id,
+			Domain:     dom,
+			Status:     store.JobStatusQueued,
+			Detail:     "Đang chờ đến lượt trong hàng đợi tuần tự",
+		})
+	}
+	if len(initialItems) == 0 {
+		return ipc.Response{OK: false, Code: 400, Error: "instance_ids is required"}
+	}
+
+	title := fmt.Sprintf("Cập nhật WordPress Core tuần tự (%d site)", len(initialItems))
+	target := fmt.Sprintf("%d website", len(initialItems))
+	jobType := "bulk_update_wp_core"
+	if len(initialItems) == 1 {
+		title = "Cập nhật WordPress Core"
+		target = initialItems[0].Domain
+		jobType = "update_wp_core"
+	}
+
+	jobRec, err := s.Jobs.EnqueueWithMeta(
+		store.JobMeta{
+			Type:        jobType,
+			Title:       title,
+			Target:      target,
+			Owner:       jobOwner,
+			InitialStep: fmt.Sprintf("Đang xếp vào hàng đợi cập nhật WordPress tuần tự (%d site)...", len(initialItems)),
+			Items:       initialItems,
+		},
+		func(jobCtx context.Context, ctrl *store.JobController) error {
+			_, uErr := s.SmartUpdate.RunSequentialBulkCoreUpdate(jobCtx, ctrl.JobID(), resolveOwner, coreReq, ctrl)
+			return uErr
 		},
 	)
 	if err != nil {
@@ -1093,17 +1340,22 @@ func (s *Service) dispatchInstall(ctx context.Context, acct dausers.Account, par
 		return ipc.Response{OK: false, Code: 400, Error: prepErr.Error()}
 	}
 
-	jobRec, err := s.Jobs.Enqueue(
-		"install",
-		acct.Username,
-		"",
-		"Preparing WordPress installation on "+preparedReq.Domain+preparedReq.SubPath,
-		func(jobCtx context.Context, report store.ProgressReporter) error {
-			res, iErr := s.Lifecycle.Install(jobCtx, acct, preparedReq, report)
+	targetSite := preparedReq.Domain + preparedReq.SubPath
+	jobRec, err := s.Jobs.EnqueueWithMeta(
+		store.JobMeta{
+			Type:        "install",
+			Title:       "Cài đặt WordPress mới",
+			Target:      targetSite,
+			Owner:       acct.Username,
+			InitialStep: "Đang chuẩn bị cài đặt WordPress trên " + targetSite,
+		},
+		func(jobCtx context.Context, ctrl *store.JobController) error {
+			res, iErr := s.Lifecycle.Install(jobCtx, acct, preparedReq, ctrl.Report)
 			if iErr != nil {
 				return iErr
 			}
 			s.postInstallSecurityHook(jobCtx, acct, res.Instance.ID)
+			ctrl.SetSummary(fmt.Sprintf("Đã cài đặt thành công WordPress %s trên %s", res.Instance.WPVersion, targetSite))
 			return nil
 		},
 	)

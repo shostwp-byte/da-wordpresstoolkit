@@ -105,3 +105,69 @@ func TestJobManagerConcurrencyLockAndCompletion(t *testing.T) {
 		t.Fatalf("expected job lookup by intruder to fail with ErrNotFound, got %v", err)
 	}
 }
+
+func TestJobManagerRichMetaItemsAndClearCompleted(t *testing.T) {
+	dir := t.TempDir()
+	jm, err := NewJobManager(dir, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		cancel()
+		jm.Wait()
+	}()
+	jm.Start(ctx)
+
+	rec, err := jm.EnqueueWithMeta(JobMeta{
+		Type:        "bulk_update_wp_core",
+		Title:       "Cập nhật WordPress Core tuần tự (2 site)",
+		Target:      "2 website",
+		Owner:       "reno26",
+		InitialStep: "Đang xếp hàng...",
+		Items: []JobItemResult{
+			{InstanceID: "wp_1", Domain: "one.io.vn", Status: JobStatusQueued},
+			{InstanceID: "wp_2", Domain: "two.io.vn", Status: JobStatusQueued},
+		},
+	}, func(_ context.Context, ctrl *JobController) error {
+		ctrl.Report(50, "Đang cập nhật [1/2] one.io.vn...")
+		ctrl.UpdateItem(0, JobStatusSucceeded, "WP 6.5 → 6.8.1")
+		ctrl.UpdateItem(1, JobStatusSkipped, "Đã ở bản mới nhất (WP 6.8.1)")
+		ctrl.SetSummary("Hoàn tất 2/2 site: nâng cấp 1, bỏ qua 1")
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("EnqueueWithMeta failed: %v", err)
+	}
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		got, gErr := jm.GetJobForOwner(rec.ID, "reno26", false)
+		if gErr == nil && got.Status == JobStatusSucceeded {
+			break
+		}
+		time.Sleep(15 * time.Millisecond)
+	}
+
+	got, err := jm.GetJobForOwner(rec.ID, "reno26", false)
+	if err != nil {
+		t.Fatalf("GetJobForOwner failed: %v", err)
+	}
+	if got.TotalItems != 2 || got.DoneItems != 2 || got.SkippedItems != 1 || got.FailedItems != 0 {
+		t.Fatalf("unexpected item counters: %+v", got)
+	}
+	if got.Summary != "Hoàn tất 2/2 site: nâng cấp 1, bỏ qua 1" {
+		t.Fatalf("unexpected summary: %q", got.Summary)
+	}
+
+	// ClearCompletedJobs for another user must not remove reno26's job
+	if removed := jm.ClearCompletedJobs("other", false); removed != 0 {
+		t.Fatalf("expected 0 removed for other user, got %d", removed)
+	}
+	if removed := jm.ClearCompletedJobs("reno26", false); removed != 1 {
+		t.Fatalf("expected 1 removed for reno26, got %d", removed)
+	}
+	if len(jm.ListJobs("reno26", false, 10)) != 0 {
+		t.Fatalf("expected empty job list after ClearCompletedJobs")
+	}
+}

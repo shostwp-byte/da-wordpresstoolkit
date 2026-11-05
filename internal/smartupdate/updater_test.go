@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -193,5 +195,155 @@ func TestBulkMultiSiteSmartUpdateIsolatesFaultySite(t *testing.T) {
 	}
 	if bulkOut.TotalInstances != 3 || bulkOut.SucceededCount != 2 || bulkOut.RolledBackCount != 1 || bulkOut.FailedCount != 0 {
 		t.Fatalf("unexpected BulkOutcome: %+v", bulkOut)
+	}
+}
+
+func TestSequentialBulkWPCoreUpdateSkipsUpToDateAndEnforcesSingleConcurrency(t *testing.T) {
+	tmp := t.TempDir()
+	homeDir := filepath.Join(tmp, "home", "shostweb")
+	st, err := store.Open(filepath.Join(tmp, "state"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wpOrgMock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/core/version-check/1.7/") {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"offers":[{"response":"upgrade","current":"6.8.1","version":"6.8.1","php_version":"7.4"}]}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer wpOrgMock.Close()
+
+	type siteSeed struct {
+		domain string
+		wpVer  string
+		phpVer string
+	}
+	seeds := []siteSeed{
+		{domain: "site1.shostweb.io.vn", wpVer: "6.5.14", phpVer: "8.1"},
+		{domain: "site2.shostweb.io.vn", wpVer: "6.8.1", phpVer: "8.2"},  // Already latest -> must skip!
+		{domain: "site3.shostweb.io.vn", wpVer: "6.9.11", phpVer: "8.3"}, // Newer/custom -> must skip!
+		{domain: "site4.shostweb.io.vn", wpVer: "6.7.1", phpVer: "8.1"},
+	}
+
+	var ids []string
+	docRoots := make(map[string]string)
+	for _, s := range seeds {
+		dr := filepath.Join(homeDir, "domains", s.domain, "public_html")
+		verDir := filepath.Join(dr, "wp-includes")
+		if mErr := os.MkdirAll(verDir, 0o755); mErr != nil {
+			t.Fatal(mErr)
+		}
+		verPHP := "<?php\n$wp_version = '" + s.wpVer + "';\n$wp_local_package = 'vi';\n"
+		if wErr := os.WriteFile(filepath.Join(verDir, "version.php"), []byte(verPHP), 0o644); wErr != nil {
+			t.Fatal(wErr)
+		}
+		rec, uErr := st.UpsertInstance(store.InstanceRecord{
+			Owner:      "shostweb",
+			OwnerUID:   1008,
+			Domain:     s.domain,
+			DocRoot:    dr,
+			WPVersion:  s.wpVer,
+			PHPVersion: s.phpVer,
+			Locale:     "vi",
+		})
+		if uErr != nil {
+			t.Fatal(uErr)
+		}
+		ids = append(ids, rec.ID)
+		docRoots[rec.Domain] = dr
+	}
+
+	var activeCoreUpdates atomic.Int32
+	var maxObservedConcurrent atomic.Int32
+	var muCalls sync.Mutex
+	coreUpdateCalls := make(map[string]int)
+
+	wpRunner := wpcli.NewRunner("/usr/local/bin/wp", "")
+	wpRunner.NiceBin = ""
+	wpRunner.IoniceBin = ""
+	wpRunner.ExecCommand = func(_ context.Context, spec wpcli.ExecSpec) (string, string, error) {
+		joined := strings.Join(spec.Args, " ")
+		var matchedDom string
+		var matchedRoot string
+		for dom, dr := range docRoots {
+			if strings.Contains(joined, dr) {
+				matchedDom = dom
+				matchedRoot = dr
+				break
+			}
+		}
+		if strings.Contains(joined, "core update") && !strings.Contains(joined, "update-db") {
+			cur := activeCoreUpdates.Add(1)
+			for {
+				prev := maxObservedConcurrent.Load()
+				if cur <= prev || maxObservedConcurrent.CompareAndSwap(prev, cur) {
+					break
+				}
+			}
+			time.Sleep(35 * time.Millisecond)
+			activeCoreUpdates.Add(-1)
+
+			muCalls.Lock()
+			coreUpdateCalls[matchedDom]++
+			muCalls.Unlock()
+
+			if matchedRoot != "" {
+				newVerPHP := "<?php\n$wp_version = '6.8.1';\n$wp_local_package = 'vi';\n"
+				_ = os.WriteFile(filepath.Join(matchedRoot, "wp-includes", "version.php"), []byte(newVerPHP), 0o644)
+			}
+			return "Success: WordPress updated successfully.", "", nil
+		}
+		return "Success: Done.", "", nil
+	}
+
+	engine := NewEngine(nil, wpRunner, nil, st, filepath.Join(tmp, "staging"))
+	engine.WPOrgAPIBase = wpOrgMock.URL
+	acct := dausers.Account{Username: "shostweb", UID: 1008, GID: 1008, HomeDir: homeDir}
+	resolveOwner := func(_ string) (dausers.Account, error) { return acct, nil }
+
+	// 1. Pre-flight check must report 2 outdated and 2 up-to-date
+	chk, err := engine.CheckCoreUpdates(context.Background(), resolveOwner, ids, "", true)
+	if err != nil {
+		t.Fatalf("CheckCoreUpdates failed: %v", err)
+	}
+	if chk.LatestVersion != "6.8.1" || chk.OutdatedCount != 2 || chk.UpToDateCount != 2 {
+		t.Fatalf("unexpected CheckCoreUpdates summary: %+v", chk)
+	}
+
+	// 2. Run sequential bulk update and verify skipped vs upgraded & concurrency == 1
+	out, err := engine.RunSequentialBulkCoreUpdate(
+		context.Background(),
+		"job_test_seq",
+		resolveOwner,
+		BulkCoreUpdateRequest{InstanceIDs: ids},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("RunSequentialBulkCoreUpdate failed: %v", err)
+	}
+	if out.UpdatedCount != 2 || out.SkippedCount != 2 || out.FailedCount != 0 {
+		t.Fatalf("unexpected BulkCoreOutcome: %+v", out)
+	}
+	if maxObservedConcurrent.Load() != 1 {
+		t.Fatalf("expected strictly sequential execution (max concurrency 1), observed %d", maxObservedConcurrent.Load())
+	}
+
+	muCalls.Lock()
+	defer muCalls.Unlock()
+	if coreUpdateCalls["site2.shostweb.io.vn"] != 0 || coreUpdateCalls["site3.shostweb.io.vn"] != 0 {
+		t.Fatalf("expected up-to-date sites to be skipped without invoking wp core update, got calls=%v", coreUpdateCalls)
+	}
+	if coreUpdateCalls["site1.shostweb.io.vn"] != 1 || coreUpdateCalls["site4.shostweb.io.vn"] != 1 {
+		t.Fatalf("expected outdated sites to be updated once each, got calls=%v", coreUpdateCalls)
+	}
+
+	// Verify Store records now reflect 6.8.1
+	inst1, _ := st.GetInstance(ids[0])
+	inst4, _ := st.GetInstance(ids[3])
+	if inst1.WPVersion != "6.8.1" || inst4.WPVersion != "6.8.1" {
+		t.Fatalf("expected Store WPVersion updated to 6.8.1, got %s and %s", inst1.WPVersion, inst4.WPVersion)
 	}
 }

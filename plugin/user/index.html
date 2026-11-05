@@ -918,14 +918,74 @@ cat <<'DAWPTK_USER_HTML'
       color: var(--green-text);
     }
 
-    /* Real-Time Job Drawer & Toasts */
+    /* Real-Time Job Drawer, Live Task Banner & Toasts */
+    @keyframes wptkSpin { to { transform: rotate(360deg); } }
+    .wptk-spin {
+      display: inline-flex;
+      animation: wptkSpin 1s linear infinite;
+    }
+    .wptk-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .wptk-job-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 11px 16px;
+      margin-bottom: 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      flex-wrap: wrap;
+    }
+    .wptk-job-banner.running {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+    }
+    .wptk-job-banner.done {
+      border-color: var(--green-border);
+      background: var(--green-bg);
+    }
+    .wptk-job-banner.failed {
+      border-color: var(--red-border);
+      background: var(--red-bg);
+    }
+    .wptk-job-queue-list {
+      margin-top: 8px;
+      max-height: 210px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 11.5px;
+    }
+    .wptk-job-queue-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .wptk-job-queue-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
     .wptk-drawer {
       position: fixed;
       top: 0;
       right: 0;
       bottom: 0;
-      width: 380px;
-      max-width: 92vw;
+      width: 440px;
+      max-width: 94vw;
       background: var(--bg);
       border-left: 1px solid var(--border);
       box-shadow: var(--shadow-lg);
@@ -1025,6 +1085,7 @@ cat <<'DAWPTK_USER_HTML'
       clone: '<svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
       folder: '<svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
       archive: '<svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>',
+      upCircle: '<svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/></svg>',
       zap: '<svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
       close: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
     };
@@ -1037,6 +1098,9 @@ cat <<'DAWPTK_USER_HTML'
         jobs: 'Tác vụ',
         searchPh: 'Tìm kiếm tên miền, tiêu đề site...',
         selectAll: 'Chọn tất cả',
+        collapseAll: 'Thu gọn tất cả',
+        expandAll: 'Mở rộng tất cả',
+        wpCoreBtn: 'Cập nhật WP',
         emptySites: 'Chưa có website WordPress nào được quản lý. Bấm "+ Install" để cài đặt mới 1-Click hoặc "Scan" để tự động nhận diện các site sẵn có.',
         allowGoogle: 'Cho phép Google',
         blockGoogle: 'Chặn lập chỉ mục',
@@ -1052,6 +1116,9 @@ cat <<'DAWPTK_USER_HTML'
         jobs: 'Tasks',
         searchPh: 'Search domain, site title...',
         selectAll: 'Select all',
+        collapseAll: 'Collapse all',
+        expandAll: 'Expand all',
+        wpCoreBtn: 'WP Core',
         emptySites: 'No WordPress instances registered yet. Click "+ Install" for 1-Click setup or "Scan" to auto-discover existing sites.',
         allowGoogle: 'Allow Google',
         blockGoogle: 'Noindex active',
@@ -1081,6 +1148,8 @@ cat <<'DAWPTK_USER_HTML'
       search: '',
       selectedIds: {},
       collapsedIds: {},
+      collapseInitialized: false,
+      dismissedJobBannerId: '',
       subTabs: {},
       sitePlugins: {},
       siteThemes: {},
@@ -1374,7 +1443,54 @@ cat <<'DAWPTK_USER_HTML'
       });
     }
 
-    /* Real-Time Background Job Polling */
+    /* Real-Time Background Job Polling & Human-Readable Task Helpers */
+    function humanJobTitle(jb) {
+      if (jb && jb.title) return jb.title;
+      var tp = (jb && jb.type) || '';
+      var mapVi = {
+        install: 'Cài đặt WordPress mới',
+        smart_update: 'Smart Safe Update Plugins/Themes',
+        bulk_smart_update: 'Smart Safe Update hàng loạt',
+        update_wp_core: 'Cập nhật WordPress Core',
+        bulk_update_wp_core: 'Cập nhật WordPress Core tuần tự',
+        snapshot_create: 'Sao lưu Snapshot (.tar.zst)',
+        snapshot_restore: 'Khôi phục Snapshot',
+        clone: 'Nhân bản Website (Clone)',
+        staging_sync: 'Đồng bộ Staging ↔ Production'
+      };
+      var mapEn = {
+        install: 'Install WordPress',
+        smart_update: 'Smart Safe Update',
+        bulk_smart_update: 'Bulk Smart Safe Update',
+        update_wp_core: 'Update WordPress Core',
+        bulk_update_wp_core: 'Sequential Bulk WP Core Update',
+        snapshot_create: 'Create Snapshot (.tar.zst)',
+        snapshot_restore: 'Restore Snapshot',
+        clone: 'Clone Instance',
+        staging_sync: 'Sync Staging ↔ Production'
+      };
+      var m = S.lang === 'en' ? mapEn : mapVi;
+      return m[tp] || tp || 'Background Task';
+    }
+
+    function jobStatusBadge(jb) {
+      var st = (jb && jb.status) || 'queued';
+      var pct = typeof jb.progress === 'number' ? jb.progress : 0;
+      if (st === 'running') {
+        return '<span class="wptk-pill wptk-pill-indigo"><span class="wptk-spin" style="margin-right:3px;">⟳</span> ' + (S.lang === 'en' ? ('Running ' + pct + '%') : ('Đang chạy ' + pct + '%')) + '</span>';
+      }
+      if (st === 'queued') {
+        return '<span class="wptk-pill wptk-pill-amber">⏳ ' + (S.lang === 'en' ? 'Queued' : 'Đang chờ lượt') + '</span>';
+      }
+      if (st === 'succeeded') {
+        return '<span class="wptk-pill wptk-pill-green">✓ ' + (S.lang === 'en' ? 'Completed' : 'Đã hoàn tất') + '</span>';
+      }
+      if (st === 'rolled_back') {
+        return '<span class="wptk-pill wptk-pill-amber">↺ ' + (S.lang === 'en' ? 'Auto-Rolled Back' : 'Đã tự hoàn tác') + '</span>';
+      }
+      return '<span class="wptk-pill wptk-pill-red">✕ ' + (S.lang === 'en' ? 'Failed' : 'Thất bại') + '</span>';
+    }
+
     function hasRunningJobs() {
       for (var i = 0; i < S.jobs.length; i++) {
         if (S.jobs[i].status === 'queued' || S.jobs[i].status === 'running') return true;
@@ -1382,25 +1498,62 @@ cat <<'DAWPTK_USER_HTML'
       return false;
     }
 
-    function trackBackgroundJob() {
+    function syncDefaultCollapseState() {
+      var count = S.instances.length;
+      if (!S.collapseInitialized) {
+        S.collapseInitialized = true;
+        if (count > 1) {
+          for (var i = 0; i < count; i++) {
+            S.collapsedIds[S.instances[i].id] = true;
+          }
+        } else if (count === 1) {
+          S.collapsedIds[S.instances[0].id] = false;
+        }
+        return;
+      }
+      if (count > 1) {
+        for (var j = 0; j < count; j++) {
+          var instId = S.instances[j].id;
+          if (!(instId in S.collapsedIds)) {
+            S.collapsedIds[instId] = true;
+          }
+        }
+      } else if (count === 1) {
+        var singleId = S.instances[0].id;
+        if (!(singleId in S.collapsedIds)) {
+          S.collapsedIds[singleId] = false;
+        }
+      }
+    }
+
+    function trackBackgroundJob(jobId) {
+      S.dismissedJobBannerId = '';
       S.drawerOpen = true;
       pollJobsNow();
     }
 
     function pollJobsNow() {
-      api('list_jobs', { limit: 15 }).then(function (res) {
+      api('list_jobs', { limit: 20 }).then(function (res) {
         var prevRunning = hasRunningJobs();
         S.jobs = (res.data && res.data.jobs) || [];
         renderDrawer();
         renderTopJobBadge();
+        updateLiveJobBannerDOM();
         var nowRunning = hasRunningJobs();
         if (prevRunning && !nowRunning) {
-          toast('Tác vụ nền đã hoàn tất!', 'ok');
+          var latest = S.jobs[0];
+          if (latest && latest.status === 'failed') {
+            toast('Tác vụ nền kết thúc với lỗi: ' + (latest.error || humanJobTitle(latest)), 'err');
+          } else {
+            toast('Đã hoàn tất: ' + (latest ? (latest.summary || humanJobTitle(latest)) : 'Tác vụ nền'), 'ok');
+          }
           loadBootstrap(true);
           S.instances.forEach(function (inst) {
-            var sub = S.subTabs[inst.id];
-            if (sub === 'plugins') loadSiteExtensions(inst.id, false, false);
-            else if (sub === 'themes') loadSiteExtensions(inst.id, true, false);
+            if (!S.collapsedIds[inst.id]) {
+              var sub = S.subTabs[inst.id];
+              if (sub === 'plugins') loadSiteExtensions(inst.id, false, false);
+              else if (sub === 'themes') loadSiteExtensions(inst.id, true, false);
+            }
           });
           if (S.globalTab === 'plugins') loadGlobalExtensions(false, false);
           if (S.globalTab === 'themes') loadGlobalExtensions(true, false);
@@ -1416,7 +1569,7 @@ cat <<'DAWPTK_USER_HTML'
       if (!silent) S.loading = true;
       return api('get_bootstrap').then(function (res) {
         var d = res.data || {};
-        S.version = d.version || 'v1.0.1';
+        S.version = d.version || 'v1.0.2';
         S.username = d.username || '';
         S.pkg = d.package || '';
         S.policy = d.policy || {};
@@ -1424,6 +1577,7 @@ cat <<'DAWPTK_USER_HTML'
         S.instances = Array.isArray(d.instances) ? d.instances : [];
         S.sets = Array.isArray(d.sets) ? d.sets : [];
         S.jobs = Array.isArray(d.jobs) ? d.jobs : [];
+        syncDefaultCollapseState();
         S.loading = false;
         renderApp();
         renderDrawer();
@@ -1523,10 +1677,93 @@ cat <<'DAWPTK_USER_HTML'
       var btn = document.getElementById('dawptk-job-btn');
       if (!btn) return;
       var activeCount = 0;
+      var doneCount = 0;
+      var failCount = 0;
       for (var i = 0; i < S.jobs.length; i++) {
-        if (S.jobs[i].status === 'running' || S.jobs[i].status === 'queued') activeCount++;
+        var st = S.jobs[i].status;
+        if (st === 'running' || st === 'queued') activeCount++;
+        else if (st === 'failed') failCount++;
+        else doneCount++;
       }
-      btn.innerHTML = IC.zap + ' ' + esc(t('jobs')) + ' (' + (activeCount > 0 ? activeCount + ' ⏳' : S.jobs.length) + ')';
+      if (activeCount > 0) {
+        btn.style.borderColor = 'var(--primary)';
+        btn.style.background = 'var(--primary-soft)';
+        btn.style.color = 'var(--primary)';
+        btn.style.fontWeight = '700';
+        btn.innerHTML = '<span class="wptk-spin">' + IC.refresh + '</span> ' + (S.lang === 'en' ? ('Running (' + activeCount + ')') : ('Đang chạy (' + activeCount + ')'));
+      } else {
+        btn.style.borderColor = '';
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.fontWeight = '';
+        if (S.jobs.length === 0) {
+          btn.innerHTML = IC.zap + ' ' + esc(t('jobs')) + ' (0)';
+        } else if (S.jobs[0] && S.jobs[0].status === 'failed') {
+          btn.innerHTML = '⚠ ' + esc(t('jobs')) + ' (' + failCount + ' lỗi)';
+        } else {
+          btn.innerHTML = '✓ ' + esc(t('jobs')) + ' (' + (S.lang === 'en' ? (doneCount + ' done') : (doneCount + ' xong')) + ')';
+        }
+      }
+    }
+
+    function renderLiveJobBannerHtml() {
+      var activeJob = null;
+      for (var i = 0; i < S.jobs.length; i++) {
+        if (S.jobs[i].status === 'running' || S.jobs[i].status === 'queued') {
+          activeJob = S.jobs[i];
+          break;
+        }
+      }
+      if (activeJob) {
+        var pct = typeof activeJob.progress === 'number' ? activeJob.progress : 5;
+        var counterTxt = '';
+        if (activeJob.total_items > 0) {
+          counterTxt = ' • ' + (activeJob.done_items || 0) + '/' + activeJob.total_items + ' site';
+          if (activeJob.skipped_items > 0) counterTxt += ' (bỏ qua: ' + activeJob.skipped_items + ')';
+        }
+        return '<div class="wptk-job-banner running">' +
+          '<div style="flex:1;min-width:260px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">' +
+              '<span class="wptk-spin" style="color:var(--primary);">' + IC.refresh + '</span>' +
+              '<strong>' + (S.lang === 'en' ? 'RUNNING:' : 'TÁC VỤ ĐANG CHẠY:') + ' ' + esc(humanJobTitle(activeJob)) + '</strong>' +
+              '<span class="wptk-pill wptk-pill-indigo">' + pct + '%' + esc(counterTxt) + '</span>' +
+            '</div>' +
+            '<div style="font-size:12px;color:var(--text-2);margin-top:4px;">' + esc(activeJob.step || 'Đang xử lý tác vụ nền...') + '</div>' +
+            '<div class="wptk-progress-track" style="max-width:520px;"><div class="wptk-progress-bar" style="width:' + pct + '%"></div></div>' +
+          '</div>' +
+          '<div style="display:flex;gap:8px;align-items:center;">' +
+            '<button type="button" class="wptk-btn wptk-btn-sm" data-act="open-drawer">' + (S.lang === 'en' ? 'View Queue & Details' : 'Xem tiến trình chi tiết') + '</button>' +
+          '</div>' +
+        '</div>';
+      }
+
+      var latest = S.jobs[0];
+      if (!latest || S.dismissedJobBannerId === latest.id) return '';
+      var finTime = Date.parse(latest.completed_at || latest.updated_at || '');
+      if (!finTime || (Date.now() - finTime) > 90000) return '';
+
+      var isFail = latest.status === 'failed';
+      var bannerCls = isFail ? 'failed' : 'done';
+      var prefix = isFail
+        ? ('✕ ' + (S.lang === 'en' ? 'FAILED:' : 'TÁC VỤ THẤT BẠI:'))
+        : ('✓ ' + (S.lang === 'en' ? 'COMPLETED:' : 'ĐÃ HOÀN TẤT:'));
+      var detailMsg = isFail ? (latest.error || latest.step || '') : (latest.summary || latest.step || '');
+
+      return '<div class="wptk-job-banner ' + bannerCls + '">' +
+        '<div style="flex:1;min-width:260px;">' +
+          '<div style="font-size:13px;"><strong>' + prefix + ' ' + esc(humanJobTitle(latest)) + '</strong></div>' +
+          (detailMsg ? '<div style="font-size:12px;margin-top:3px;">' + esc(detailMsg) + '</div>' : '') +
+        '</div>' +
+        '<div style="display:flex;gap:6px;align-items:center;">' +
+          '<button type="button" class="wptk-btn wptk-btn-sm" data-act="open-drawer">' + (S.lang === 'en' ? 'Details' : 'Xem kết quả') + '</button>' +
+          '<button type="button" class="wptk-btn wptk-btn-icon" data-act="dismiss-job-banner" data-id="' + esc(latest.id) + '" title="Ẩn thông báo">' + IC.close + '</button>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function updateLiveJobBannerDOM() {
+      var box = document.getElementById('dawptk-live-job-banner');
+      if (box) box.innerHTML = renderLiveJobBannerHtml();
     }
 
     function renderApp() {
@@ -1548,6 +1785,9 @@ cat <<'DAWPTK_USER_HTML'
       html += '    <button type="button" class="wptk-btn" data-act="refresh-all">' + IC.refresh + ' ' + esc(t('refresh')) + '</button>';
       html += '  </div>';
       html += '</div>';
+
+      /* Live Background Task Status Strip */
+      html += '<div id="dawptk-live-job-banner">' + renderLiveJobBannerHtml() + '</div>';
 
       /* 2. Global Navigation Tabs + Search */
       html += '<div class="wptk-nav-row">';
@@ -1594,23 +1834,30 @@ cat <<'DAWPTK_USER_HTML'
       var list = filteredInstances();
       var selIds = selectedInstanceIds();
       var allChecked = list.length > 0 && list.every(function (it) { return !!S.selectedIds[it.id]; });
+      var allCollapsed = list.length > 0 && list.every(function (it) { return !!S.collapsedIds[it.id]; });
 
       var h = '';
-      /* Bulk Action Toolbar + 3-Mode View Switcher */
+      /* Bulk Action Toolbar + Card Collapse Toggle + 3-Mode View Switcher */
       h += '<div class="wptk-toolbar">';
       h += '  <div class="wptk-toolbar-left">';
       h += '    <label class="wptk-check-label"><input type="checkbox" class="wptk-checkbox" data-act="toggle-select-all" ' + (allChecked ? 'checked' : '') + ' /> ' + esc(t('selectAll')) + (selIds.length ? ' (' + selIds.length + ')' : '') + '</label>';
       h += '    <button type="button" class="wptk-btn wptk-btn-primary" data-act="open-install">' + IC.plus + ' Install</button>';
       h += '    <button type="button" class="wptk-btn" data-act="scan-sites">' + IC.search + ' Scan</button>';
-      h += '    <button type="button" class="wptk-btn" data-act="open-bulk-update">' + IC.refresh + ' Updates</button>';
+      h += '    <button type="button" class="wptk-btn" data-act="open-bulk-core-update" title="Kiểm tra &amp; cập nhật phiên bản WordPress tuần tự">' + IC.upCircle + ' ' + esc(t('wpCoreBtn')) + '</button>';
+      h += '    <button type="button" class="wptk-btn" data-act="open-bulk-update" title="Smart Safe Update Plugins &amp; Themes">' + IC.refresh + ' Updates</button>';
       h += '    <button type="button" class="wptk-btn" data-act="open-bulk-security">' + IC.shield + ' Security</button>';
       h += '    <button type="button" class="wptk-btn" data-act="bulk-detach" ' + (selIds.length === 0 ? 'disabled' : '') + '>' + IC.unlink + ' Detach</button>';
       h += '    <button type="button" class="wptk-btn wptk-btn-danger" data-act="open-bulk-remove" ' + (selIds.length === 0 ? 'disabled' : '') + '>' + IC.trash + ' Remove</button>';
       h += '  </div>';
-      h += '  <div class="wptk-view-switch" role="group" aria-label="View mode">';
-      h += '    <button type="button" class="wptk-view-btn ' + (S.viewMode === 'cards' ? 'active' : '') + '" data-act="set-view" data-view="cards" title="Expanded Cards View">' + IC.vCards + '</button>';
-      h += '    <button type="button" class="wptk-view-btn ' + (S.viewMode === 'grid' ? 'active' : '') + '" data-act="set-view" data-view="grid" title="Grid Tiles View">' + IC.vGrid + '</button>';
-      h += '    <button type="button" class="wptk-view-btn ' + (S.viewMode === 'list' ? 'active' : '') + '" data-act="set-view" data-view="list" title="Compact List View">' + IC.vList + '</button>';
+      h += '  <div class="wptk-toolbar-right">';
+      if (S.viewMode === 'cards' && list.length > 0) {
+        h += '    <button type="button" class="wptk-btn wptk-btn-sm" data-act="toggle-collapse-all" title="Thu gọn hoặc mở rộng đồng loạt các thẻ WordPress">' + (allCollapsed ? (IC.chevDn + ' ' + esc(t('expandAll'))) : (IC.chevUp + ' ' + esc(t('collapseAll')))) + '</button>';
+      }
+      h += '    <div class="wptk-view-switch" role="group" aria-label="View mode">';
+      h += '      <button type="button" class="wptk-view-btn ' + (S.viewMode === 'cards' ? 'active' : '') + '" data-act="set-view" data-view="cards" title="Expanded Cards View">' + IC.vCards + '</button>';
+      h += '      <button type="button" class="wptk-view-btn ' + (S.viewMode === 'grid' ? 'active' : '') + '" data-act="set-view" data-view="grid" title="Grid Tiles View">' + IC.vGrid + '</button>';
+      h += '      <button type="button" class="wptk-view-btn ' + (S.viewMode === 'list' ? 'active' : '') + '" data-act="set-view" data-view="list" title="Compact List View">' + IC.vList + '</button>';
+      h += '    </div>';
       h += '  </div>';
       h += '</div>';
 
@@ -1643,19 +1890,22 @@ cat <<'DAWPTK_USER_HTML'
       var phpLabel = inst.php_version ? ('PHP ' + inst.php_version) : 'PHP Default';
       var secTot = inst.security_total || 12;
 
-      var h = '<div class="wptk-inst-card ' + (collapsed ? 'collapsed' : '') + '">';
+      var h = '<div id="wptk-card-' + esc(id) + '" class="wptk-inst-card ' + (collapsed ? 'collapsed' : '') + '">';
       /* Card Header Strip */
       h += '<div class="wptk-inst-hdr">';
       h += '  <div class="wptk-inst-hdr-left">';
       h += '    <input type="checkbox" class="wptk-checkbox" data-act="toggle-select-one" data-id="' + esc(id) + '" ' + (S.selectedIds[id] ? 'checked' : '') + ' />';
-      h += '    <span style="color:var(--text);display:inline-flex;">' + IC.wp + '</span>';
-      h += '    <span class="wptk-inst-domain">' + esc(fullLabel) + ' <a href="' + esc(siteUrl) + '" target="_blank" rel="noopener noreferrer" title="Mở trang web">' + IC.ext + '</a></span>';
+      h += '    <span style="color:var(--text);display:inline-flex;cursor:pointer;" data-act="toggle-collapse" data-id="' + esc(id) + '">' + IC.wp + '</span>';
+      h += '    <span class="wptk-inst-domain"><span style="cursor:pointer;" data-act="toggle-collapse" data-id="' + esc(id) + '" title="Nhấn để mở rộng / thu gọn">' + esc(fullLabel) + '</span> <a href="' + esc(siteUrl) + '" target="_blank" rel="noopener noreferrer" title="Mở trang web">' + IC.ext + '</a></span>';
       h += '    <span class="wptk-pill wptk-pill-green">WP ' + esc(inst.wp_version || '6.x') + '</span>';
       h += '    <span class="wptk-pill wptk-pill-slate">' + esc(phpLabel) + '</span>';
       if (inst.environment_tag === 'staging') {
         h += '  <span class="wptk-pill wptk-pill-amber">STAGING</span>';
       }
       h += '    ' + shieldBadge(inst);
+      if (collapsed && inst.update_count > 0) {
+        h += '  <span class="wptk-pill wptk-pill-amber">' + inst.update_count + ' updates</span>';
+      }
       if (inst.vuln_count > 0) {
         h += '  <span class="wptk-pill wptk-pill-red">⚠ ' + inst.vuln_count + ' CVE</span>';
       }
@@ -1737,7 +1987,7 @@ cat <<'DAWPTK_USER_HTML'
       h += '  <div class="wptk-gen-label">Site title</div>';
       h += '  <div class="wptk-gen-val"><strong>' + esc(inst.site_title || inst.domain) + '</strong> <button type="button" class="wptk-link-btn" data-act="open-title" data-id="' + esc(id) + '">[Change]</button></div>';
       h += '  <div class="wptk-gen-label">Current version</div>';
-      h += '  <div class="wptk-gen-val"><strong>' + esc(inst.wp_version || '6.x') + '</strong> <span style="color:var(--muted);font-size:12px;">(PHP ' + esc(inst.php_version || 'default') + ')</span> <button type="button" class="wptk-link-btn" data-act="verify-core-now" data-id="' + esc(id) + '">[Check / Re-sync Core]</button></div>';
+      h += '  <div class="wptk-gen-val"><strong>' + esc(inst.wp_version || '6.x') + '</strong> <span style="color:var(--muted);font-size:12px;">(PHP ' + esc(inst.php_version || 'default') + ')</span> <button type="button" class="wptk-link-btn" data-act="open-single-core-update" data-id="' + esc(id) + '">[⬆ Cập nhật WP]</button> <button type="button" class="wptk-link-btn" data-act="verify-core-now" data-id="' + esc(id) + '">[Check / Re-sync Core]</button></div>';
       h += '  <div class="wptk-gen-label">Administrator</div>';
       h += '  <div class="wptk-gen-val"><strong>' + esc(inst.admin_user || 'admin') + '</strong> <button type="button" class="wptk-link-btn" data-act="sso-login" data-id="' + esc(id) + '">Log in</button> <button type="button" class="wptk-link-btn" data-act="open-admin-setup" data-id="' + esc(id) + '">[Setup]</button></div>';
       h += '</div>';
@@ -1983,7 +2233,7 @@ cat <<'DAWPTK_USER_HTML'
         h += '  <div style="font-size:12.5px;color:var(--muted);">' + esc(inst.site_title || inst.domain) + ' • Theme: ' + esc(inst.active_theme || 'Default') + '</div>';
         h += '  <div style="display:flex;gap:6px;flex-wrap:wrap;"><span class="wptk-pill wptk-pill-green">WP ' + esc(inst.wp_version) + '</span><span class="wptk-pill wptk-pill-slate">PHP ' + esc(inst.php_version || 'default') + '</span>' + securityPill(inst) + (inst.update_count > 0 ? '<span class="wptk-pill wptk-pill-amber">' + inst.update_count + ' updates</span>' : '') + '</div>';
         h += '  <div style="display:flex;justify-content:space-between;gap:8px;padding-top:8px;border-top:1px solid var(--border);">';
-        h += '    <button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="sso-login" data-id="' + esc(inst.id) + '">' + IC.login + ' wp-admin</button>';
+        h += '    <button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="sso-login" data-id="' + esc(inst.id) + '">' + IC.login + ' Login</button>';
         h += '    <button type="button" class="wptk-btn wptk-btn-sm" data-act="focus-card" data-id="' + esc(inst.id) + '">Chi tiết →</button>';
         h += '  </div>';
         h += '</div>';
@@ -2007,7 +2257,7 @@ cat <<'DAWPTK_USER_HTML'
         h += '<td>' + shieldBadge(inst) + '</td>';
         h += '<td>' + securityPill(inst) + '</td>';
         h += '<td>' + (inst.update_count > 0 ? '<span class="wptk-pill wptk-pill-amber">' + inst.update_count + '</span>' : '0') + (inst.vuln_count > 0 ? ' <span class="wptk-pill wptk-pill-red">' + inst.vuln_count + ' CVE</span>' : '') + '</td>';
-        h += '<td style="text-align:right;white-space:nowrap;"><button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="sso-login" data-id="' + esc(inst.id) + '">wp-admin</button> <button type="button" class="wptk-btn wptk-btn-sm" data-act="focus-card" data-id="' + esc(inst.id) + '">Mở thẻ</button></td>';
+        h += '<td style="text-align:right;white-space:nowrap;"><button type="button" class="wptk-btn wptk-btn-primary wptk-btn-sm" data-act="sso-login" data-id="' + esc(inst.id) + '">' + IC.login + ' Login</button> <button type="button" class="wptk-btn wptk-btn-sm" data-act="focus-card" data-id="' + esc(inst.id) + '">Mở thẻ</button></td>';
         h += '</tr>';
       }
       h += '</tbody></table></div>';
@@ -2100,29 +2350,99 @@ cat <<'DAWPTK_USER_HTML'
     }
 
     /* Real-Time Background Job Progress Drawer */
+    function renderJobQueueItemBadge(st) {
+      if (st === 'running') return '<span class="wptk-pill wptk-pill-indigo">⟳ Đang chạy</span>';
+      if (st === 'succeeded') return '<span class="wptk-pill wptk-pill-green">✓ Đã nâng cấp</span>';
+      if (st === 'skipped') return '<span class="wptk-pill wptk-pill-slate">⏭ Bỏ qua</span>';
+      if (st === 'rolled_back') return '<span class="wptk-pill wptk-pill-amber">↺ Hoàn tác</span>';
+      if (st === 'failed') return '<span class="wptk-pill wptk-pill-red">✕ Lỗi</span>';
+      return '<span class="wptk-pill wptk-pill-amber">⏳ Chờ lượt</span>';
+    }
+
     function renderDrawer() {
       if (!S.drawerOpen) {
         drawerEl.innerHTML = '';
         return;
       }
+      var runningCnt = 0;
+      var doneCnt = 0;
+      var failCnt = 0;
+      for (var k = 0; k < S.jobs.length; k++) {
+        var s = S.jobs[k].status;
+        if (s === 'running' || s === 'queued') runningCnt++;
+        else if (s === 'failed') failCnt++;
+        else doneCnt++;
+      }
+
       var h = '<div class="wptk-drawer">';
-      h += '  <div class="wptk-modal-hdr"><h3 class="wptk-modal-title">⚡ Tiến trình Tác vụ Nền (' + S.jobs.length + ')</h3><button type="button" class="wptk-btn wptk-btn-icon" data-act="close-drawer">' + IC.close + '</button></div>';
+      h += '  <div class="wptk-modal-hdr">';
+      h += '    <h3 class="wptk-modal-title">⚡ ' + (S.lang === 'en' ? 'Background Tasks' : 'Tiến trình Tác vụ Nền') + ' (' + S.jobs.length + ')</h3>';
+      h += '    <div style="display:flex;gap:6px;align-items:center;">';
+      if (doneCnt + failCnt > 0) {
+        h += '      <button type="button" class="wptk-btn wptk-btn-sm" data-act="clear-jobs" title="Xóa lịch sử tác vụ đã kết thúc">' + (S.lang === 'en' ? 'Clear done' : 'Xóa lịch sử') + '</button>';
+      }
+      h += '      <button type="button" class="wptk-btn wptk-btn-icon" data-act="close-drawer">' + IC.close + '</button>';
+      h += '    </div>';
+      h += '  </div>';
       h += '  <div class="wptk-modal-body">';
+
+      if (S.jobs.length > 0) {
+        h += '<div style="display:flex;gap:6px;flex-wrap:wrap;padding-bottom:4px;">';
+        h += '  <span class="wptk-pill ' + (runningCnt > 0 ? 'wptk-pill-indigo' : 'wptk-pill-slate') + '">⟳ Đang chạy: ' + runningCnt + '</span>';
+        h += '  <span class="wptk-pill wptk-pill-green">✓ Đã hoàn tất: ' + doneCnt + '</span>';
+        if (failCnt > 0) h += '  <span class="wptk-pill wptk-pill-red">✕ Thất bại: ' + failCnt + '</span>';
+        h += '</div>';
+      }
+
       if (S.jobs.length === 0) {
-        h += '<div class="wptk-empty">Chưa có tác vụ chạy nền nào trong phiên này.</div>';
+        h += '<div class="wptk-empty">Hiện không có tác vụ chạy nền nào. Mọi tiến trình cài đặt, sao lưu hoặc cập nhật hàng loạt sẽ hiển thị chi tiết tại đây.</div>';
       } else {
         for (var i = 0; i < S.jobs.length; i++) {
           var jb = S.jobs[i];
-          var stCls = jb.status === 'succeeded' ? 'wptk-pill-green' : (jb.status === 'failed' ? 'wptk-pill-red' : 'wptk-pill-indigo');
-          var pct = jb.status === 'succeeded' ? 100 : (jb.progress || 10);
-          h += '<div style="border:1px solid var(--border);border-radius:11px;padding:12px;">';
-          h += '  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><strong>' + esc(jb.type) + '</strong><span class="wptk-pill ' + stCls + '">' + esc(jb.status) + '</span></div>';
-          h += '  <div style="font-size:12px;color:var(--text-2);margin-top:5px;">' + esc(jb.message || '') + '</div>';
-          if (jb.error) {
-            h += '<div style="font-size:11.5px;color:var(--red-text);margin-top:4px;">' + esc(jb.error) + '</div>';
+          var isRun = jb.status === 'running' || jb.status === 'queued';
+          var pct = jb.status === 'succeeded' ? 100 : (typeof jb.progress === 'number' ? jb.progress : (isRun ? 8 : 100));
+          var barBg = jb.status === 'succeeded' ? '#16a34a' : (jb.status === 'failed' ? '#dc2626' : 'var(--primary-btn)');
+          var cardBorder = isRun ? 'var(--primary)' : 'var(--border)';
+
+          h += '<div style="border:1px solid ' + cardBorder + ';border-radius:12px;padding:12px 13px;background:' + (isRun ? 'var(--primary-soft)' : 'var(--bg)') + ';">';
+          h += '  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">';
+          h += '    <div>';
+          h += '      <strong style="font-size:13px;">' + esc(humanJobTitle(jb)) + '</strong>';
+          if (jb.target) {
+            h += '    <div style="font-size:11.5px;color:var(--muted);margin-top:1px;">Mục tiêu: <strong>' + esc(jb.target) + '</strong></div>';
           }
-          h += '  <div class="wptk-progress-track"><div class="wptk-progress-bar" style="width:' + pct + '%"></div></div>';
-          h += '  <div style="font-size:11px;color:var(--muted);margin-top:5px;">Cập nhật: ' + esc(fmtDate(jb.updated_at || jb.created_at)) + '</div>';
+          h += '    </div>';
+          h += '    ' + jobStatusBadge(jb);
+          h += '  </div>';
+
+          if (jb.step) {
+            h += '  <div style="font-size:12px;color:var(--text-2);margin-top:6px;">' + (isRun ? '<strong>Đang thực hiện:</strong> ' : '<strong>Bước cuối:</strong> ') + esc(jb.step) + '</div>';
+          }
+          if (jb.summary) {
+            h += '  <div class="wptk-alert wptk-alert-ok" style="margin-top:7px;padding:7px 10px;font-size:11.8px;">' + esc(jb.summary) + '</div>';
+          }
+          if (jb.error) {
+            h += '  <div class="wptk-alert wptk-alert-warn" style="margin-top:7px;padding:7px 10px;font-size:11.8px;color:var(--red-text);border-color:var(--red-border);background:var(--red-bg);"><strong>Lỗi:</strong> ' + esc(jb.error) + '</div>';
+          }
+
+          h += '  <div class="wptk-progress-track"><div class="wptk-progress-bar" style="width:' + pct + '%;background:' + barBg + ';"></div></div>';
+
+          if (Array.isArray(jb.items) && jb.items.length > 0) {
+            h += '  <div style="margin-top:7px;font-size:11.5px;font-weight:600;color:var(--text-2);">Hàng đợi xử lý (' + (jb.done_items || 0) + '/' + jb.items.length + ' site' + (jb.skipped_items ? ' • Bỏ qua: ' + jb.skipped_items : '') + '):</div>';
+            h += '  <div class="wptk-job-queue-list">';
+            for (var m = 0; m < jb.items.length; m++) {
+              var it = jb.items[m];
+              h += '    <div class="wptk-job-queue-row">';
+              h += '      <div style="min-width:0;word-break:break-all;"><strong>' + esc(it.domain || it.instance_id) + '</strong>' + (it.detail ? '<div style="color:var(--muted);font-size:11px;">' + esc(it.detail) + '</div>' : '') + '</div>';
+              h += '      <div style="flex-shrink:0;">' + renderJobQueueItemBadge(it.status) + '</div>';
+              h += '    </div>';
+            }
+            h += '  </div>';
+          }
+
+          var startStr = fmtDate(jb.started_at || jb.created_at);
+          var endStr = jb.completed_at ? (' • Hoàn tất: ' + fmtDate(jb.completed_at)) : (isRun ? ' • Đang chạy trực tiếp...' : '');
+          h += '  <div style="font-size:11px;color:var(--muted);margin-top:6px;">Bắt đầu: ' + esc(startStr + endStr) + '</div>';
           h += '</div>';
         }
       }
@@ -2634,6 +2954,121 @@ cat <<'DAWPTK_USER_HTML'
       };
     }
 
+    /* 9. Sequential Bulk WordPress Core Version Updater Modal */
+    function showBulkCoreUpdateModal(explicitIds) {
+      var targetIds = Array.isArray(explicitIds) && explicitIds.length > 0 ? explicitIds.slice() : selectedInstanceIds();
+      var usingSelection = targetIds.length > 0;
+      if (!targetIds.length) {
+        for (var i = 0; i < S.instances.length; i++) targetIds.push(S.instances[i].id);
+      }
+      if (!targetIds.length) {
+        toast('Chưa có website WordPress nào để kiểm tra cập nhật.', 'err');
+        return;
+      }
+
+      var scopeText = (Array.isArray(explicitIds) && explicitIds.length === 1)
+        ? '1 website đã chọn'
+        : (usingSelection ? (targetIds.length + ' website đã chọn') : ('toàn bộ ' + targetIds.length + ' website'));
+
+      openModal(
+        '⬆ Cập nhật Phiên bản WordPress Hàng loạt (Hàng đợi Tuần tự)',
+        '<div id="wptk-core-check-body"><div class="wptk-empty">Đang kiểm tra phiên bản WordPress hiện tại của ' + esc(scopeText) + ' với kho chính thức WordPress.org...</div></div>',
+        '<button type="button" class="wptk-btn" data-act="close-modal">Đóng</button>' +
+        '<button type="button" class="wptk-btn" id="wptk-core-recheck">' + IC.refresh + ' Kiểm tra lại</button>' +
+        '<button type="button" class="wptk-btn wptk-btn-primary" id="wptk-core-start-btn" disabled>' + IC.upCircle + ' Đưa vào hàng đợi Cập nhật Tuần tự</button>',
+        true
+      );
+
+      function runCheck(forceRefresh) {
+        var box = document.getElementById('wptk-core-check-body');
+        var startBtn = document.getElementById('wptk-core-start-btn');
+        if (!box) return;
+        if (startBtn) startBtn.disabled = true;
+        box.innerHTML = '<div class="wptk-empty"><span class="wptk-spin">' + IC.refresh + '</span> Đang đối chiếu phiên bản WordPress với api.wordpress.org...</div>';
+
+        api('check_core_updates', {
+          forcePost: true,
+          params: { instance_ids: targetIds, force_refresh: !!forceRefresh }
+        }).then(function (res) {
+          var d = res.data || {};
+          var items = Array.isArray(d.items) ? d.items : [];
+          var latestVer = d.latest_version || '';
+          var minPhp = d.min_php_version || '';
+          var outdated = d.outdated_count || 0;
+          var upToDate = d.up_to_date_count || 0;
+          var incomp = d.incompatible_count || 0;
+
+          var h = '<div class="wptk-alert" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">';
+          h += '  <div><strong>Phiên bản WordPress ổn định mới nhất:</strong> <span class="wptk-pill wptk-pill-green">WP ' + esc(latestVer) + '</span>' + (minPhp ? ' <span class="wptk-pill wptk-pill-slate">Yêu cầu PHP &gt;= ' + esc(minPhp) + '</span>' : '') + '</div>';
+          h += '  <div style="display:flex;gap:6px;flex-wrap:wrap;">';
+          h += '    <span class="wptk-pill wptk-pill-indigo">Cần nâng cấp: ' + outdated + '</span>';
+          h += '    <span class="wptk-pill wptk-pill-green">Đã mới nhất (Bỏ qua): ' + upToDate + '</span>';
+          if (incomp > 0) h += '    <span class="wptk-pill wptk-pill-amber">Không đủ PHP: ' + incomp + '</span>';
+          h += '  </div>';
+          h += '</div>';
+
+          h += '<div style="font-size:12.5px;color:var(--text-2);">';
+          h += 'Hệ thống sẽ đưa danh sách vào <strong>hàng đợi cập nhật tuần tự từng site một (1-by-1)</strong> để không gây quá tải CPU/RAM/Disk. Các website đã là phiên bản <strong>WP ' + esc(latestVer) + '</strong> trở lên sẽ <strong>tự động được bỏ qua</strong>.';
+          h += '</div>';
+
+          if (outdated === 0) {
+            h += '<div class="wptk-alert wptk-alert-ok">✓ Tuyệt vời! Tất cả ' + items.length + ' website kiểm tra đều đã ở phiên bản mới nhất (hoặc không cần cập nhật).</div>';
+          }
+
+          h += '<div class="wptk-table-wrap" style="max-height:330px;overflow-y:auto;"><table class="wptk-table"><thead><tr><th>Website</th><th>Hiện tại</th><th>PHP</th><th>Trạng thái xử lý</th></tr></thead><tbody>';
+          for (var k = 0; k < items.length; k++) {
+            var it = items[k];
+            var badge = '';
+            if (it.action === 'upgrade') {
+              badge = '<span class="wptk-pill wptk-pill-indigo">⬆ Nâng cấp → WP ' + esc(latestVer) + '</span>';
+            } else if (it.action === 'skip') {
+              badge = '<span class="wptk-pill wptk-pill-green">⏭ Đã mới nhất — Bỏ qua</span>';
+            } else if (it.action === 'incompatible_php') {
+              badge = '<span class="wptk-pill wptk-pill-amber">⚠ ' + esc(it.reason) + '</span>';
+            } else {
+              badge = '<span class="wptk-pill wptk-pill-red">✕ ' + esc(it.reason || 'Lỗi') + '</span>';
+            }
+            h += '<tr>';
+            h += '  <td><strong>' + esc((it.domain || it.instance_id) + (it.sub_path || '')) + '</strong></td>';
+            h += '  <td><span class="wptk-pill wptk-pill-slate">WP ' + esc(it.current_version || '?') + '</span></td>';
+            h += '  <td>PHP ' + esc(it.php_version || 'def') + '</td>';
+            h += '  <td>' + badge + '</td>';
+            h += '</tr>';
+          }
+          h += '</tbody></table></div>';
+          box.innerHTML = h;
+
+          if (startBtn) {
+            if (outdated > 0) {
+              startBtn.disabled = false;
+              startBtn.innerHTML = IC.upCircle + ' Cập nhật Tuần tự (' + outdated + ' site nâng cấp, ' + upToDate + ' bỏ qua)';
+            } else {
+              startBtn.disabled = true;
+              startBtn.innerHTML = '✓ Tất cả đã là bản mới nhất';
+            }
+            startBtn.onclick = function () {
+              startBtn.disabled = true;
+              api('bulk_update_wp_core', {
+                params: { instance_ids: targetIds }
+              }).then(function () {
+                closeModal();
+                toast('Đã đưa ' + targetIds.length + ' site vào hàng đợi cập nhật WordPress Core tuần tự!', 'ok');
+              }).catch(function (e) {
+                startBtn.disabled = false;
+                toast(e.message, 'err');
+              });
+            };
+          }
+        }).catch(function (e) {
+          box.innerHTML = '<div class="wptk-alert wptk-alert-warn">Không thể kiểm tra phiên bản từ WordPress.org: ' + esc(e.message) + '</div>';
+        });
+      }
+
+      var recheckBtn = document.getElementById('wptk-core-recheck');
+      if (recheckBtn) recheckBtn.onclick = function () { runCheck(true); };
+      runCheck(false);
+    }
+
     /* Unified Event Delegation (Zero Inline JS) */
     rootEl.addEventListener('click', function (ev) {
       var target = ev.target.closest('[data-act]');
@@ -2648,11 +3083,23 @@ cat <<'DAWPTK_USER_HTML'
       if (act === 'close-modal' || act === 'backdrop-close') { closeModal(); return; }
       if (act === 'open-drawer') { S.drawerOpen = true; renderDrawer(); pollJobsNow(); return; }
       if (act === 'close-drawer') { S.drawerOpen = false; renderDrawer(); return; }
+      if (act === 'dismiss-job-banner') { S.dismissedJobBannerId = id; updateLiveJobBannerDOM(); return; }
+      if (act === 'clear-jobs') {
+        api('clear_jobs').then(function (res) {
+          S.jobs = (res.data && res.data.jobs) || [];
+          renderDrawer();
+          renderTopJobBadge();
+          updateLiveJobBannerDOM();
+          toast('Đã dọn sạch lịch sử tác vụ đã kết thúc.', 'ok');
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
 
       if (act === 'toggle-lang') {
         S.lang = S.lang === 'vi' ? 'en' : 'vi';
         localStorage.setItem('dawptk_lang', S.lang);
         renderApp();
+        renderDrawer();
         return;
       }
       if (act === 'toggle-theme') {
@@ -2682,11 +3129,38 @@ cat <<'DAWPTK_USER_HTML'
         S.viewMode = 'cards';
         S.collapsedIds[id] = false;
         renderApp();
+        if (!S.sitePlugins[id]) loadSiteExtensions(id, false, false);
+        setTimeout(function () {
+          var cardNode = document.getElementById('wptk-card-' + id);
+          if (cardNode && cardNode.scrollIntoView) cardNode.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 40);
         return;
       }
       if (act === 'toggle-collapse') {
-        S.collapsedIds[id] = !S.collapsedIds[id];
+        var nextCollapsed = !S.collapsedIds[id];
+        S.collapsedIds[id] = nextCollapsed;
         renderApp();
+        if (!nextCollapsed && !S.sitePlugins[id]) {
+          loadSiteExtensions(id, false, false);
+        }
+        return;
+      }
+      if (act === 'toggle-collapse-all') {
+        var vis = filteredInstances();
+        var shouldExpand = vis.length > 0 && vis.every(function (it) { return !!S.collapsedIds[it.id]; });
+        for (var ci = 0; ci < vis.length; ci++) {
+          S.collapsedIds[vis[ci].id] = !shouldExpand;
+        }
+        renderApp();
+        if (shouldExpand) {
+          var preloadCnt = 0;
+          for (var pi = 0; pi < vis.length && preloadCnt < 3; pi++) {
+            if (!S.sitePlugins[vis[pi].id]) {
+              preloadCnt++;
+              loadSiteExtensions(vis[pi].id, false, false);
+            }
+          }
+        }
         return;
       }
       if (act === 'switch-subtab') {
@@ -2985,6 +3459,15 @@ cat <<'DAWPTK_USER_HTML'
           this.disabled = true;
           api('apply_set', { instance_id: targetInstId, params: { set_id: chosenSetId } }).then(function () { closeModal(); toast('Đã cài đặt Bộ Set thành công!', 'ok'); loadBootstrap(true); }).catch(function (e) { toast(e.message, 'err'); });
         };
+        return;
+      }
+
+      if (act === 'open-bulk-core-update') {
+        showBulkCoreUpdateModal();
+        return;
+      }
+      if (act === 'open-single-core-update' && inst) {
+        showBulkCoreUpdateModal([id]);
         return;
       }
 

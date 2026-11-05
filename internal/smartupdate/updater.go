@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -80,13 +81,25 @@ type stagedBackupItem struct {
 // Engine executes Smart Safe Updates with pre-flight directory staging, live HTTP/log health checks,
 // and sub-3-second automatic directory rollback on HTTP 500 / PHP Fatal error (TC-08).
 type Engine struct {
-	Domains        *dadomains.Resolver
-	WPCLI          *wpcli.Runner
-	Extensions     *extensions.Manager
-	Store          *store.Store
-	StagingBaseDir string
-	ProbeHealth    ProberFunc
-	MaxBulkWorkers int
+	Domains               *dadomains.Resolver
+	WPCLI                 *wpcli.Runner
+	Extensions            *extensions.Manager
+	Store                 *store.Store
+	StagingBaseDir        string
+	ProbeHealth           ProberFunc
+	MaxBulkWorkers        int
+	WPOrgAPIBase          string
+	HTTPClient            *http.Client
+	WithShieldSuppression func(acct dausers.Account, inst store.InstanceRecord, fn func() error) error
+	OnCoreUpdated         func(ctx context.Context, acct dausers.Account, inst store.InstanceRecord)
+	TryLockInstance       func(instanceID, jobID string) bool
+	UnlockInstance        func(instanceID, jobID string)
+
+	coreUpdateSeqMu sync.Mutex
+	coreVerMu       sync.Mutex
+	cachedLatestWP  string
+	cachedMinPHP    string
+	coreVerExpires  time.Time
 }
 
 func NewEngine(
@@ -107,7 +120,16 @@ func NewEngine(
 		StagingBaseDir: stagingBaseDir,
 		ProbeHealth:    DefaultLoopbackProber,
 		MaxBulkWorkers: DefaultBulkConcurrency,
+		WPOrgAPIBase:   "https://api.wordpress.org",
+		HTTPClient:     &http.Client{Timeout: 10 * time.Second},
 	}
+}
+
+func (e *Engine) runWithShield(acct dausers.Account, inst store.InstanceRecord, fn func() error) error {
+	if e != nil && e.WithShieldSuppression != nil {
+		return e.WithShieldSuppression(acct, inst, fn)
+	}
+	return fn()
 }
 
 // UpdateInstance runs the 3-step Smart Safe Update pipeline on a single WordPress instance.
@@ -377,8 +399,23 @@ func (e *Engine) RunBulkUpdate(
 	req BulkRequest,
 	report store.ProgressReporter,
 ) (BulkOutcome, error) {
+	return e.RunBulkUpdateWithController(ctx, resolveOwner, req, nil, report)
+}
+
+// RunBulkUpdateWithController executes Smart Safe Update across multiple WordPress instances and records per-site status.
+func (e *Engine) RunBulkUpdateWithController(
+	ctx context.Context,
+	resolveOwner func(instanceID string) (dausers.Account, error),
+	req BulkRequest,
+	ctrl *store.JobController,
+	report store.ProgressReporter,
+) (BulkOutcome, error) {
 	if report == nil {
-		report = func(int, string) {}
+		if ctrl != nil {
+			report = ctrl.Report
+		} else {
+			report = func(int, string) {}
+		}
 	}
 
 	var ids []string
@@ -395,6 +432,25 @@ func (e *Engine) RunBulkUpdate(
 	}
 	if len(ids) == 0 {
 		return BulkOutcome{}, errors.New("at least one instance_id is required for bulk update")
+	}
+
+	if ctrl != nil {
+		initialItems := make([]store.JobItemResult, len(ids))
+		for i, id := range ids {
+			dom := id
+			if e.Store != nil {
+				if inst, gErr := e.Store.GetInstance(id); gErr == nil {
+					dom = inst.Domain + inst.SubPath
+				}
+			}
+			initialItems[i] = store.JobItemResult{
+				InstanceID: id,
+				Domain:     dom,
+				Status:     store.JobStatusQueued,
+				Detail:     "Đang chờ đến lượt",
+			}
+		}
+		ctrl.SetItems(initialItems)
 	}
 
 	workers := e.MaxBulkWorkers
@@ -422,12 +478,25 @@ func (e *Engine) RunBulkUpdate(
 			defer wg.Done()
 			for idx := range ch {
 				instID := ids[idx]
+				domLabel := instID
+				if e.Store != nil {
+					if inst, gErr := e.Store.GetInstance(instID); gErr == nil {
+						domLabel = inst.Domain + inst.SubPath
+					}
+				}
+				if ctrl != nil {
+					ctrl.UpdateItem(idx, store.JobStatusRunning, "Đang kiểm tra & cập nhật Plugins/Themes...")
+				}
+
 				acct, oErr := resolveOwner(instID)
 				if oErr != nil {
 					results[idx] = Outcome{
 						InstanceID:  instID,
 						Status:      "failed",
 						FaultReason: oErr.Error(),
+					}
+					if ctrl != nil {
+						ctrl.UpdateItem(idx, store.JobStatusFailed, oErr.Error())
 					}
 				} else {
 					res, uErr := e.UpdateInstance(ctx, acct, Request{
@@ -445,12 +514,24 @@ func (e *Engine) RunBulkUpdate(
 						}
 					}
 					results[idx] = res
+					if ctrl != nil {
+						switch res.Status {
+						case "noop":
+							ctrl.UpdateItem(idx, store.JobStatusSkipped, "Đã ở phiên bản mới nhất — Bỏ qua")
+						case "succeeded":
+							ctrl.UpdateItem(idx, store.JobStatusSucceeded, fmt.Sprintf("Đã cập nhật %d plugin, %d theme", len(res.UpdatedPlugins), len(res.UpdatedThemes)))
+						case "rolled_back":
+							ctrl.UpdateItem(idx, store.JobStatusRolledBack, "Tự hoàn tác an toàn: "+res.FaultReason)
+						default:
+							ctrl.UpdateItem(idx, store.JobStatusFailed, res.FaultReason)
+						}
+					}
 				}
 
 				doneMu.Lock()
 				completed++
 				pct := (completed * 100) / len(ids)
-				report(pct, fmt.Sprintf("Processed %d/%d WordPress instances", completed, len(ids)))
+				report(pct, fmt.Sprintf("Đã xử lý [%d/%d] %s", completed, len(ids), domLabel))
 				doneMu.Unlock()
 			}
 		}()
@@ -461,15 +542,26 @@ func (e *Engine) RunBulkUpdate(
 		TotalInstances: len(ids),
 		Results:        results,
 	}
+	noopCount := 0
 	for _, r := range results {
 		switch r.Status {
-		case "succeeded", "noop":
+		case "noop":
+			summary.SucceededCount++
+			noopCount++
+		case "succeeded":
 			summary.SucceededCount++
 		case "rolled_back":
 			summary.RolledBackCount++
 		default:
 			summary.FailedCount++
 		}
+	}
+	if ctrl != nil {
+		upgraded := summary.SucceededCount - noopCount
+		ctrl.SetSummary(fmt.Sprintf(
+			"Hoàn tất %d/%d site: nâng cấp %d, bỏ qua %d (đã mới nhất), tự hoàn tác %d, lỗi %d",
+			len(ids), len(ids), upgraded, noopCount, summary.RolledBackCount, summary.FailedCount,
+		))
 	}
 	return summary, nil
 }

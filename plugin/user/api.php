@@ -193,6 +193,7 @@ $readOnlyActions = [
     'list_all_plugins',
     'list_all_themes',
     'search_wporg',
+    'check_core_updates',
     'get_vulns',
     'get_security_status',
     'get_tools_status',

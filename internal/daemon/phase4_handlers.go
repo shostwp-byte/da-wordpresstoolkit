@@ -337,14 +337,23 @@ func (s *Service) handlePhase4Action(
 			}
 			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: rec}
 		}
-		jobRec, jErr := s.Jobs.Enqueue(
-			"snapshot_create",
-			acct.Username,
-			inst.ID,
-			"Creating Zstandard (.tar.zst) snapshot of "+inst.Domain+inst.SubPath,
-			func(jobCtx context.Context, report store.ProgressReporter) error {
-				_, cErr := s.Snapshots.CreateSnapshot(jobCtx, acct, snapReq, report)
-				return cErr
+		targetDom := inst.Domain + inst.SubPath
+		jobRec, jErr := s.Jobs.EnqueueWithMeta(
+			store.JobMeta{
+				Type:        "snapshot_create",
+				Title:       "Sao lưu Snapshot (.tar.zst)",
+				Target:      targetDom,
+				Owner:       acct.Username,
+				InstanceID:  inst.ID,
+				InitialStep: "Đang đóng gói bản sao lưu Zstandard cho " + targetDom,
+			},
+			func(jobCtx context.Context, ctrl *store.JobController) error {
+				rec, cErr := s.Snapshots.CreateSnapshot(jobCtx, acct, snapReq, ctrl.Report)
+				if cErr != nil {
+					return cErr
+				}
+				ctrl.SetSummary("Đã tạo bản sao lưu " + rec.FileName)
+				return nil
 			},
 		)
 		if jErr != nil {
@@ -371,13 +380,21 @@ func (s *Service) handlePhase4Action(
 			}
 			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: res}
 		}
-		jobRec, jErr := s.Jobs.Enqueue(
-			"snapshot_restore",
-			acct.Username,
-			inst.ID,
-			"Restoring snapshot "+snapID+" on "+inst.Domain+inst.SubPath,
-			func(jobCtx context.Context, report store.ProgressReporter) error {
-				_, rErr := s.Snapshots.RestoreSnapshot(jobCtx, acct, inst.ID, snapID, report)
+		targetDom := inst.Domain + inst.SubPath
+		jobRec, jErr := s.Jobs.EnqueueWithMeta(
+			store.JobMeta{
+				Type:        "snapshot_restore",
+				Title:       "Khôi phục Snapshot",
+				Target:      targetDom,
+				Owner:       acct.Username,
+				InstanceID:  inst.ID,
+				InitialStep: "Đang khôi phục bản sao lưu " + snapID + " trên " + targetDom,
+			},
+			func(jobCtx context.Context, ctrl *store.JobController) error {
+				_, rErr := s.Snapshots.RestoreSnapshot(jobCtx, acct, inst.ID, snapID, ctrl.Report)
+				if rErr == nil {
+					ctrl.SetSummary("Đã khôi phục thành công bản sao lưu " + snapID + " cho " + targetDom)
+				}
 				return rErr
 			},
 		)
@@ -467,17 +484,23 @@ func (s *Service) handlePhase4Action(
 			}
 			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: res}
 		}
-		jobRec, jErr := s.Jobs.Enqueue(
-			"clone",
-			acct.Username,
-			srcInst.ID,
-			"Cloning "+srcInst.Domain+srcInst.SubPath+" -> "+cloneReq.TargetDomain+cloneReq.TargetSubPath,
-			func(jobCtx context.Context, report store.ProgressReporter) error {
-				res, cErr := s.CloneSync.Clone(jobCtx, acct, cloneReq, report)
+		cloneLabel := srcInst.Domain + srcInst.SubPath + " → " + cloneReq.TargetDomain + cloneReq.TargetSubPath
+		jobRec, jErr := s.Jobs.EnqueueWithMeta(
+			store.JobMeta{
+				Type:        "clone",
+				Title:       "Nhân bản Website (Clone / Staging)",
+				Target:      cloneLabel,
+				Owner:       acct.Username,
+				InstanceID:  srcInst.ID,
+				InitialStep: "Đang nhân bản " + cloneLabel,
+			},
+			func(jobCtx context.Context, ctrl *store.JobController) error {
+				res, cErr := s.CloneSync.Clone(jobCtx, acct, cloneReq, ctrl.Report)
 				if cErr != nil {
 					return cErr
 				}
 				s.postInstallSecurityHook(jobCtx, acct, res.Instance.ID)
+				ctrl.SetSummary("Đã nhân bản thành công sang " + cloneReq.TargetDomain + cloneReq.TargetSubPath)
 				return nil
 			},
 		)
@@ -522,13 +545,21 @@ func (s *Service) handlePhase4Action(
 			}
 			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: res}
 		}
-		jobRec, jErr := s.Jobs.Enqueue(
-			"staging_sync",
-			acct.Username,
-			dstInst.ID,
-			"Syncing "+srcInst.Domain+srcInst.SubPath+" -> "+dstInst.Domain+dstInst.SubPath,
-			func(jobCtx context.Context, report store.ProgressReporter) error {
-				_, sErr := s.CloneSync.Sync(jobCtx, acct, syncReq, report)
+		syncLabel := srcInst.Domain + srcInst.SubPath + " → " + dstInst.Domain + dstInst.SubPath
+		jobRec, jErr := s.Jobs.EnqueueWithMeta(
+			store.JobMeta{
+				Type:        "staging_sync",
+				Title:       "Đồng bộ Staging ↔ Production",
+				Target:      syncLabel,
+				Owner:       acct.Username,
+				InstanceID:  dstInst.ID,
+				InitialStep: "Đang đồng bộ " + syncLabel,
+			},
+			func(jobCtx context.Context, ctrl *store.JobController) error {
+				_, sErr := s.CloneSync.Sync(jobCtx, acct, syncReq, ctrl.Report)
+				if sErr == nil {
+					ctrl.SetSummary("Đã đồng bộ hoàn tất " + syncLabel)
+				}
 				return sErr
 			},
 		)

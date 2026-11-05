@@ -249,6 +249,17 @@ func runServe(args []string) error {
 	hardEngine := hardening.NewEngine(*stateDir, wsAdapter, domResolver, wpRunner, st)
 	hardEngine.WithShieldSuppression = shield.WithUpdatingSuppression
 
+	smartEngine.WithShieldSuppression = shield.WithUpdatingSuppression
+	smartEngine.TryLockInstance = jm.TryLockInstance
+	smartEngine.UnlockInstance = jm.UnlockInstance
+	smartEngine.OnCoreUpdated = func(updateCtx context.Context, acct dausers.Account, inst store.InstanceRecord) {
+		if inst.WPVersion != "" {
+			_, _ = shield.Cache.EnsureVerifiedCore(updateCtx, inst.WPVersion, inst.Locale)
+		}
+		shield.ReconcileInstanceOwnership(acct, inst)
+		shield.SyncInstanceWatch(inst)
+	}
+
 	cronManager := quicktools.NewDACronManager(daRoot)
 	qtManager := quicktools.NewManager(domResolver, wpRunner, wsAdapter, cronManager, st)
 	qtManager.WithShieldSuppression = shield.WithUpdatingSuppression

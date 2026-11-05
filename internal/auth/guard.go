@@ -589,6 +589,7 @@ func IsMutatingAction(action string) bool {
 		"list_all_plugins",
 		"list_all_themes",
 		"search_wporg",
+		"check_core_updates",
 		"get_vulns",
 		"get_vulndb_status",
 		"get_security_status",

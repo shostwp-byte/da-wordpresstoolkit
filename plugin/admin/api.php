@@ -145,7 +145,7 @@ if (!$isPost && $reqMeth !== 'POST') {
 }
 
 $action = strtolower(trim((string) ($input['action'] ?? 'get_overview')));
-$readOnlyActions = ['ping', 'get_overview', 'list_instances', 'list_plugins', 'list_themes', 'get_vulns', 'get_vulndb_status', 'get_security_status', 'get_tools_status', 'read_debug_log', 'get_safe_wpconfig', 'list_snapshots', 'get_snapshot_download', 'list_quarantine', 'get_quarantine_diff', 'list_whitelist', 'get_core_cache_status', 'list_sets', 'list_jobs', 'get_job', 'get_security_events', 'list_packages', 'get_updater_config', 'check_github_update', 'list_update_backups'];
+$readOnlyActions = ['ping', 'get_overview', 'list_instances', 'list_plugins', 'list_themes', 'check_core_updates', 'get_vulns', 'get_vulndb_status', 'get_security_status', 'get_tools_status', 'read_debug_log', 'get_safe_wpconfig', 'list_snapshots', 'get_snapshot_download', 'list_quarantine', 'get_quarantine_diff', 'list_whitelist', 'get_core_cache_status', 'list_sets', 'list_jobs', 'get_job', 'get_security_events', 'list_packages', 'get_updater_config', 'check_github_update', 'list_update_backups'];
 
 if (!in_array($action, $readOnlyActions, true) && !$isPost) {
     emit_admin_json(['ok' => false, 'code' => 405, 'error' => 'Mutating admin actions require HTTP POST'], 405);

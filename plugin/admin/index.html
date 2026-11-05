@@ -347,7 +347,7 @@ cat <<'DAWPTK_ADMIN_HTML'
     }
 
     var READ_ONLY = {
-      ping: 1, get_overview: 1, list_instances: 1, get_vulndb_status: 1,
+      ping: 1, get_overview: 1, list_instances: 1, check_core_updates: 1, get_vulndb_status: 1,
       get_core_cache_status: 1, list_sets: 1, list_jobs: 1, get_security_events: 1,
       list_packages: 1, get_updater_config: 1, check_github_update: 1
     };
@@ -379,8 +379,38 @@ cat <<'DAWPTK_ADMIN_HTML'
         .then(function (res) {
           if (res && res.csrf_token) A.csrf = res.csrf_token;
           if (!res || !res.ok) throw new Error((res && res.error) ? res.error : ('Admin IPC Error: ' + action));
+          if (res.job_id) {
+            A.showJobs = true;
+            pollAdminJobs();
+          }
           return res;
         });
+    }
+
+    function hasAdminRunningJobs() {
+      var list = A.jobs || [];
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].status === 'running' || list[i].status === 'queued') return true;
+      }
+      return false;
+    }
+
+    function pollAdminJobs() {
+      api('list_jobs', { limit: 15 }).then(function (res) {
+        var wasRunning = hasAdminRunningJobs();
+        A.jobs = (res.data && res.data.jobs) || [];
+        var nowRunning = hasAdminRunningJobs();
+        render();
+        if (wasRunning && !nowRunning) {
+          var latest = A.jobs[0];
+          toast('Đã hoàn tất tác vụ nền: ' + ((latest && (latest.summary || latest.title)) || ''), 'ok');
+          loadOverview();
+        }
+        if (nowRunning) {
+          clearTimeout(A.jobTimer);
+          A.jobTimer = setTimeout(pollAdminJobs, 1500);
+        }
+      }).catch(function () {});
     }
 
     function loadOverview() {
@@ -390,7 +420,12 @@ cat <<'DAWPTK_ADMIN_HTML'
       ]).then(function (arr) {
         A.overview = arr[0].data || {};
         A.instances = (arr[1].data && arr[1].data.instances) || [];
+        if (Array.isArray(A.overview.jobs)) A.jobs = A.overview.jobs;
         render();
+        if (hasAdminRunningJobs()) {
+          clearTimeout(A.jobTimer);
+          A.jobTimer = setTimeout(pollAdminJobs, 1500);
+        }
       }).catch(function (e) {
         appEl.innerHTML = '<div class="adm-panel"><strong>Không thể kết nối da-wptoolkitd:</strong> ' + esc(e.message) + '</div>';
       });
@@ -416,18 +451,78 @@ cat <<'DAWPTK_ADMIN_HTML'
       }).catch(function (e) { toast(e.message, 'err'); });
     }
 
+    function renderAdminJobsSection() {
+      var jobs = A.jobs || [];
+      var activeJob = null;
+      for (var i = 0; i < jobs.length; i++) {
+        if (jobs[i].status === 'running' || jobs[i].status === 'queued') { activeJob = jobs[i]; break; }
+      }
+      if (!activeJob && !A.showJobs) return '';
+
+      var h = '<div class="adm-panel" style="margin-bottom:16px;border-color:' + (activeJob ? 'var(--primary)' : 'var(--border)') + ';">';
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;">';
+      h += '  <strong>⚡ Tiến trình Tác vụ Nền Toàn Máy Chủ (' + jobs.length + ')</strong>';
+      h += '  <div style="display:flex;gap:6px;">';
+      if (jobs.length > 0) h += '<button type="button" class="adm-btn adm-btn-sm" data-adm="clear-jobs">Xóa lịch sử đã xong</button>';
+      if (A.showJobs) h += '<button type="button" class="adm-btn adm-btn-sm" data-adm="toggle-jobs">Thu gọn</button>';
+      else h += '<button type="button" class="adm-btn adm-btn-sm" data-adm="toggle-jobs">Xem tất cả (' + jobs.length + ')</button>';
+      h += '  </div>';
+      h += '</div>';
+
+      var showList = A.showJobs ? jobs : (activeJob ? [activeJob] : []);
+      if (showList.length === 0) {
+        h += '<div style="font-size:12.5px;color:var(--muted);">Hiện không có tác vụ chạy nền nào.</div>';
+      } else {
+        showList.forEach(function (jb) {
+          var isRun = jb.status === 'running' || jb.status === 'queued';
+          var stPill = jb.status === 'running' ? '<span class="adm-pill adm-pill-indigo">⟳ Đang chạy ' + (jb.progress || 0) + '%</span>'
+            : (jb.status === 'queued' ? '<span class="adm-pill adm-pill-amber">⏳ Đang chờ lượt</span>'
+            : (jb.status === 'succeeded' ? '<span class="adm-pill adm-pill-green">✓ Đã hoàn tất</span>'
+            : (jb.status === 'rolled_back' ? '<span class="adm-pill adm-pill-amber">↺ Đã hoàn tác</span>'
+            : '<span class="adm-pill adm-pill-red">✕ Thất bại</span>')));
+          h += '<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;">';
+          h += '  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">';
+          h += '    <div><strong>' + esc(jb.title || jb.type) + '</strong> <span style="font-size:11.5px;color:var(--muted);">(' + esc(jb.owner || 'admin') + (jb.target ? ' • ' + esc(jb.target) : '') + ')</span></div>';
+          h += '    ' + stPill;
+          h += '  </div>';
+          if (jb.step) h += '<div style="font-size:12px;color:var(--muted);margin-top:4px;">' + (isRun ? 'Đang thực hiện: ' : 'Bước cuối: ') + esc(jb.step) + '</div>';
+          if (jb.summary) h += '<div style="font-size:12px;color:var(--green-text);margin-top:4px;font-weight:600;">' + esc(jb.summary) + '</div>';
+          if (jb.error) h += '<div style="font-size:12px;color:var(--red-text);margin-top:4px;">Lỗi: ' + esc(jb.error) + '</div>';
+          if (Array.isArray(jb.items) && jb.items.length > 0 && (isRun || A.showJobs)) {
+            h += '<div style="margin-top:6px;max-height:140px;overflow-y:auto;font-size:11.5px;background:var(--surface);padding:6px 8px;border-radius:8px;border:1px solid var(--border);">';
+            jb.items.forEach(function (it) {
+              var ic = it.status === 'succeeded' ? '✓' : (it.status === 'skipped' ? '⏭' : (it.status === 'running' ? '⟳' : (it.status === 'failed' ? '✕' : '⏳')));
+              h += '<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;"><span>' + ic + ' <strong>' + esc(it.domain || it.instance_id) + '</strong></span><span style="color:var(--muted);">' + esc(it.detail || it.status) + '</span></div>';
+            });
+            h += '</div>';
+          }
+          h += '</div>';
+        });
+      }
+      h += '</div>';
+      return h;
+    }
+
     function render() {
       var ov = A.overview || {};
       var ping = ov.ping || {};
+      var jobs = A.jobs || [];
+      var runningCnt = 0;
+      for (var ji = 0; ji < jobs.length; ji++) {
+        if (jobs[ji].status === 'running' || jobs[ji].status === 'queued') runningCnt++;
+      }
 
       var h = '<div class="adm-hdr">';
       h += '  <div class="adm-brand"><div class="adm-logo">W</div><div><h2 style="margin:0;font-size:19px;font-weight:700;">DA WordPress Toolkits — Server Admin Console</h2><div style="font-size:12.5px;color:var(--muted);margin-top:2px;">Quản trị toàn máy chủ, Chính sách Hosting Package, Local Verified Core Cache, Wordfence CVE Feed &amp; Cập nhật Ed25519.</div></div></div>';
-      h += '  <div style="display:flex;gap:8px;align-items:center;">';
-      h += '    <span class="adm-pill adm-pill-green">● ONLINE ' + esc(ping.version || 'v1.0.1') + '</span>';
+      h += '  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
+      h += '    <span class="adm-pill adm-pill-green">● ONLINE ' + esc(ping.version || 'v1.0.2') + '</span>';
+      h += '    <button type="button" class="adm-btn adm-btn-sm" data-adm="toggle-jobs">' + (runningCnt > 0 ? ('⟳ Đang chạy (' + runningCnt + ')') : ('⚡ Tác vụ (' + jobs.length + ')')) + '</button>';
       h += '    <button type="button" class="adm-btn adm-btn-sm" data-adm="toggle-theme">' + (rootEl.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙') + '</button>';
       h += '    <button type="button" class="adm-btn" data-adm="refresh">↻ Làm mới</button>';
       h += '  </div>';
       h += '</div>';
+
+      h += renderAdminJobsSection();
 
       h += '<div class="adm-tabs">';
       h += '  <button type="button" class="adm-tab ' + (A.tab === 'overview' ? 'active' : '') + '" data-adm="tab" data-tab="overview">1. Toàn cảnh &amp; An ninh (' + (ov.managed_sites || 0) + ')</button>';
@@ -464,6 +559,7 @@ cat <<'DAWPTK_ADMIN_HTML'
       h += '  <div style="display:flex;gap:8px;flex-wrap:wrap;">';
       h += '    <button type="button" class="adm-btn adm-btn-primary" data-adm="scan-all">🔍 Quét toàn máy chủ</button>';
       h += '    <button type="button" class="adm-btn" data-adm="verify-all-core">🛡 Kiểm tra &amp; Phục hồi Core toàn cục</button>';
+      h += '    <button type="button" class="adm-btn" data-adm="bulk-core-update">⬆ Cập nhật WP Core hàng loạt (Tuần tự)</button>';
       h += '    <button type="button" class="adm-btn" data-adm="patch-all-vuln">⚡ Vá Smart Update toàn bộ site có cập nhật</button>';
       h += '  </div>';
       h += '  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
@@ -742,6 +838,44 @@ cat <<'DAWPTK_ADMIN_HTML'
           var reps = (res.data && res.data.reports) || [];
           toast('Đã kiểm tra toàn vẹn Core cho ' + reps.length + ' website!', 'ok');
           loadOverview();
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+      if (act === 'toggle-jobs') {
+        A.showJobs = !A.showJobs;
+        if (A.showJobs) pollAdminJobs();
+        render();
+        return;
+      }
+      if (act === 'clear-jobs') {
+        api('clear_jobs', { params: {} }).then(function (res) {
+          A.jobs = (res.data && res.data.jobs) || [];
+          render();
+          toast('Đã xóa lịch sử tác vụ đã hoàn tất!', 'ok');
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+      if (act === 'bulk-core-update') {
+        if (!A.instances.length) { toast('Chưa có website WordPress nào trên máy chủ.', 'err'); return; }
+        var targetIds = A.instances.map(function (x) { return x.id; });
+        toast('Đang đối chiếu phiên bản WordPress của ' + targetIds.length + ' site với WordPress.org...');
+        api('check_core_updates', { params: { instance_ids: targetIds, force_refresh: true } }).then(function (res) {
+          var d = res.data || {};
+          var outdated = d.outdated_count || 0;
+          var upToDate = d.up_to_date_count || 0;
+          var latestVer = d.latest_version || '';
+          if (outdated === 0) {
+            toast('Tất cả ' + targetIds.length + ' website trên máy chủ đã ở phiên bản mới nhất (WP ' + latestVer + ')!', 'ok');
+            return;
+          }
+          var msg = 'Phiên bản mới nhất: WordPress ' + latestVer + '\n' +
+            '• Cần nâng cấp: ' + outdated + ' site\n' +
+            '• Đã mới nhất (tự động bỏ qua): ' + upToDate + ' site\n\n' +
+            'Đưa vào hàng đợi cập nhật tuần tự từng site một (1-by-1) ngay bây giờ?';
+          if (!confirm(msg)) return;
+          api('bulk_update_wp_core', { params: { instance_ids: targetIds } }).then(function () {
+            toast('Đã đưa ' + targetIds.length + ' website vào hàng đợi cập nhật WordPress Core tuần tự!', 'ok');
+          }).catch(function (err) { toast(err.message, 'err'); });
         }).catch(function (e) { toast(e.message, 'err'); });
         return;
       }
