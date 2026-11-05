@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release version tag (e.g. v1.0.0)'
+        required: false
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, Sign (Ed25519) & Publish Multi-Arch Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: true
+
+      - name: Run full verification & race test suite
+        run: |
+          go vet ./...
+          CGO_ENABLED=0 go test -race -count=1 ./...
+          shopt -s globstar nullglob
+          shellcheck scripts/**/*.sh plugin/scripts/*.sh plugin/admin/api.raw plugin/user/api.raw plugin/admin/index.html plugin/user/index.html
+          php -l plugin/admin/api.php
+          php -l plugin/user/api.php
+
+      - name: Package multi-arch release bundles & sign with Ed25519
+        env:
+          DA_WPTK_RELEASE_PRIVATE_KEY: ${{ secrets.RELEASE_ED25519_PRIVATE_KEY }}
+        run: |
+          bash scripts/package_release.sh
+          if [[ -f dist/release/checksums.txt.sig ]]; then
+            go run ./cmd/da-wptoolkit verify-release --dir dist/release
+          fi
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          PRE_FLAG=""
+          if [[ "$TAG" == *"-"* ]]; then
+            PRE_FLAG="--prerelease"
+          fi
+          gh release create "$TAG" dist/release/* \
+            --title "DA-WordPressToolkits ${TAG}" \
+            --generate-notes \
+            $PRE_FLAG

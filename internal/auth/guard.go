@@ -606,7 +606,8 @@ func IsMutatingAction(action string) bool {
 		"get_security_events",
 		"list_packages",
 		"get_updater_config",
-		"check_github_update":
+		"check_github_update",
+		"list_update_backups":
 		return false
 	default:
 		return true

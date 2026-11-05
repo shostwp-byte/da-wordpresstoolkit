@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+PLUGIN_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)"
+
+if [ -x "${PLUGIN_DIR}/bundle/scripts/install.sh" ]; then
+    "${PLUGIN_DIR}/bundle/scripts/install.sh"
+    rm -rf "${PLUGIN_DIR}/bundle"
+    echo "DA WordPress Toolkits plugin installed successfully."
+    exit 0
+fi
+
+chmod 0755 "${PLUGIN_DIR}/admin/index.html" "${PLUGIN_DIR}/admin/api.raw" "${PLUGIN_DIR}/user/index.html" "${PLUGIN_DIR}/user/api.raw"
+echo "DA WordPress Toolkits plugin UI permissions verified."
+exit 0

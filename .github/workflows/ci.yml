@@ -68,7 +68,7 @@ jobs:
       - name: Lint shell & CGI wrapper scripts (ShellCheck)
         run: |
           shopt -s globstar nullglob
-          shellcheck scripts/**/*.sh plugin/admin/api.raw plugin/user/api.raw plugin/admin/index.html plugin/user/index.html
+          shellcheck scripts/**/*.sh plugin/scripts/*.sh plugin/admin/api.raw plugin/user/api.raw plugin/admin/index.html plugin/user/index.html
 
       - name: Lint PHP endpoints
         run: |

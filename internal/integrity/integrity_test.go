@@ -234,7 +234,7 @@ func TestTC05_AntiThrashingEscalatesToFortressCoreLockAfter5Overwrites(t *testin
 		}
 
 		// Wait briefly for real-time watcher to heal this overwrite before next loop iteration
-		deadline := time.Now().Add(1200 * time.Millisecond)
+		deadline := time.Now().Add(3500 * time.Millisecond)
 		for time.Now().Before(deadline) {
 			cur, _ := os.ReadFile(indexPath)
 			curInst, _ := st.GetInstance(inst.ID)

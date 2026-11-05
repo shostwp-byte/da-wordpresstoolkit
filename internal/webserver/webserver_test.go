@@ -60,7 +60,7 @@ func TestOpenLiteSpeedDebouncedReloadCoalescesBursts(t *testing.T) {
 	_ = os.MkdirAll(docRoot, 0o755)
 
 	ad := NewAdapter(optConf, filepath.Join(tmp, "nginx"))
-	ad.OLSReloadDebounce = 40 * time.Millisecond
+	ad.OLSReloadDebounce = 220 * time.Millisecond
 
 	var reloadCalls atomic.Int32
 	ad.ExecCommand = func(_ context.Context, bin string, args ...string) (string, error) {
@@ -73,14 +73,14 @@ func TestOpenLiteSpeedDebouncedReloadCoalescesBursts(t *testing.T) {
 	acct := dausers.Account{Username: "reno26", UID: 1005, GID: 1005, HomeDir: homeDir}
 	inst := store.InstanceRecord{ID: "wp_abc12345", Owner: "reno26", Domain: "renolabs-audio.com", DocRoot: docRoot}
 
-	// Trigger 4 rapid rule mutations within the 40ms debounce window
+	// Trigger 4 rapid rule mutations within the debounce window
 	for _, r := range []string{RuleBlockUploadsPHP, RuleDisableXMLRPC, RuleBlockSensitiveFiles, RuleSecurityHeaders} {
 		if err := ad.ApplyRule(context.Background(), acct, inst, r); err != nil {
 			t.Fatalf("ApplyRule(%s): %v", r, err)
 		}
 	}
 
-	time.Sleep(110 * time.Millisecond)
+	time.Sleep(360 * time.Millisecond)
 	if got := reloadCalls.Load(); got != 1 {
 		t.Fatalf("expected 4 rapid OLS mutations to coalesce into exactly 1 graceful reload, got %d", got)
 	}

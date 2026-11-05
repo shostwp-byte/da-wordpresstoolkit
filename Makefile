@@ -10,7 +10,7 @@ LDFLAGS := -s -w \
 	-X '$(MODULE)/internal/version.Commit=$(COMMIT)' \
 	-X '$(MODULE)/internal/version.BuildTime=$(BUILD_TIME)'
 
-.PHONY: all build build-linux-amd64 build-linux-arm64 test vet fmt-check clean
+.PHONY: all build build-linux-amd64 build-linux-arm64 package-release test vet fmt-check clean
 
 all: fmt-check vet test build
 
@@ -22,6 +22,9 @@ build-linux-amd64:
 
 build-linux-arm64:
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o dist/$(BINARY_NAME)-linux-arm64 ./cmd/da-wptoolkit
+
+package-release:
+	bash scripts/package_release.sh
 
 test:
 	go test -v -race ./...

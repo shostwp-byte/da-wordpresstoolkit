@@ -485,6 +485,8 @@ cat <<'DAWPTK_ADMIN_HTML'
       var u = A.updaterCfg;
       if (!u) return '<div class="adm-panel">Đang tải cấu hình GitHub Self-Updater...</div>';
       var chk = A.githubCheck;
+      var bkps = u.backups || [];
+      var lastOut = u.last_outcome || null;
 
       var h = '<div class="adm-grid-2">';
       h += '<div class="adm-panel">';
@@ -494,7 +496,12 @@ cat <<'DAWPTK_ADMIN_HTML'
       h += '    <div>Kho lưu trữ cố định: <code>' + esc(u.github_repo) + '</code></div>';
       h += '    <div>Khóa công khai Ed25519: <code style="font-size:11px;word-break:break-all;">' + esc(u.public_key_hex) + '</code></div>';
       h += '  </div>';
-      h += '  <button type="button" class="adm-btn adm-btn-primary" data-adm="check-gh-update">🔍 Kiểm tra phiên bản mới từ GitHub Releases</button>';
+      h += '  <div style="display:flex;gap:8px;flex-wrap:wrap;">';
+      h += '    <button type="button" class="adm-btn adm-btn-primary" data-adm="check-gh-update">🔍 Kiểm tra bản cập nhật mới</button>';
+      if (chk && chk.update_available) {
+        h += '    <button type="button" class="adm-btn adm-btn-primary" style="background:#059669;" data-adm="apply-gh-update" data-tag="' + esc(chk.latest_version) + '">⬆ Cập nhật Nguyên tử lên ' + esc(chk.latest_version) + '</button>';
+      }
+      h += '  </div>';
       if (chk) {
         h += '<div style="margin-top:14px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);">';
         h += '  <div style="display:flex;justify-content:space-between;align-items:center;"><strong>Bản mới nhất: ' + esc(chk.latest_version) + '</strong>' + (chk.update_available ? '<span class="adm-pill adm-pill-amber">Có bản cập nhật mới!</span>' : '<span class="adm-pill adm-pill-green">Đang ở bản mới nhất</span>') + '</div>';
@@ -503,9 +510,19 @@ cat <<'DAWPTK_ADMIN_HTML'
         }
         h += '</div>';
       }
-      h += '  <div style="margin-top:14px;"><div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Tham chiếu lệnh CLI quản trị viên (SSH root):</div><div class="adm-code">da-wptoolkit ping\nda-wptoolkit scan --all\nda-wptoolkit verify-core --all\nda-wptoolkit sync-vulndb</div></div>';
+      if (lastOut) {
+        h += '<div style="margin-top:12px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);font-size:12.5px;">';
+        if (lastOut.rolled_back) {
+          h += '<span class="adm-pill adm-pill-amber">Auto-Rollback kích hoạt</span> Đã tự động hoàn tác về <strong>' + esc(lastOut.previous_version) + '</strong> trong ' + (lastOut.elapsed_ms || 0) + 'ms. Lý do: ' + esc(lastOut.fault_reason || '');
+        } else {
+          h += '<span class="adm-pill adm-pill-green">Cập nhật gần nhất thành công</span> ' + esc(lastOut.previous_version) + ' → <strong>' + esc(lastOut.target_version) + '</strong> (' + (lastOut.elapsed_ms || 0) + 'ms)';
+        }
+        h += '</div>';
+      }
+      h += '  <div style="margin-top:14px;"><div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Tham chiếu lệnh CLI quản trị viên (SSH root):</div><div class="adm-code">da-wptoolkit ping\nda-wptoolkit scan --all\nda-wptoolkit check-update\nda-wptoolkit update\nda-wptoolkit rollback</div></div>';
       h += '</div>';
 
+      h += '<div style="display:flex;flex-direction:column;gap:14px;">';
       h += '<form class="adm-panel" data-adm-form="save-updater">';
       h += '  <strong style="display:block;margin-bottom:12px;">Cấu hình Kênh Cập nhật &amp; GitHub Token (/etc/da-wptoolkit/updater.conf)</strong>';
       h += '  <div class="adm-form-grid">';
@@ -518,6 +535,20 @@ cat <<'DAWPTK_ADMIN_HTML'
       }
       h += '  <div style="margin-top:16px;display:flex;justify-content:flex-end;"><button type="submit" class="adm-btn adm-btn-primary">Lưu Cấu Hình Updater</button></div>';
       h += '</form>';
+
+      h += '<div class="adm-panel">';
+      h += '  <strong style="display:block;margin-bottom:8px;">Kho Bản Sao Lưu Khôi Phục Nhanh (Instant Rollback Snapshots)</strong>';
+      h += '  <div class="adm-table-wrap"><table class="adm-table"><thead><tr><th>Phiên bản</th><th>Thời gian</th><th>Kích thước</th><th style="text-align:right">Thao tác</th></tr></thead><tbody>';
+      if (bkps.length === 0) {
+        h += '<tr><td colspan="4" style="text-align:center;color:var(--muted);">Chưa có bản sao lưu Rollback nào (tự động tạo trước mỗi lần nâng cấp).</td></tr>';
+      } else {
+        bkps.forEach(function (b) {
+          h += '<tr><td><strong>' + esc(b.version) + '</strong></td><td>' + esc(fmtDate(b.created_at)) + '</td><td>' + esc(fmtBytes(b.size_bytes)) + '</td><td style="text-align:right"><button type="button" class="adm-btn adm-btn-sm" data-adm="rollback-gh-update" data-bkp="' + esc(b.file_name) + '">⏪ Rollback</button></td></tr>';
+        });
+      }
+      h += '  </tbody></table></div>';
+      h += '</div>';
+      h += '</div>';
       h += '</div>';
       return h;
     }
@@ -620,6 +651,26 @@ cat <<'DAWPTK_ADMIN_HTML'
           A.githubCheck = res.data || {};
           render();
           toast('Đã kiểm tra phiên bản mới nhất: ' + (A.githubCheck.latest_version || ''), 'ok');
+        }).catch(function (e) { toast(e.message, 'err'); });
+        return;
+      }
+      if (act === 'apply-gh-update') {
+        var tg = btn.getAttribute('data-tag') || '';
+        if (!confirm('Xác thực chữ ký Ed25519 + SHA-256, tạo Snapshot Backup và cập nhật nguyên tử lên ' + tg + '?')) return;
+        toast('Đang xác thực chữ ký Ed25519, tạo Snapshot Backup & khởi chạy cập nhật...');
+        api('apply_github_update', { params: { tag: tg } }).then(function () {
+          toast('Đã xác thực chữ ký & kích hoạt cập nhật nguyên tử! Đang làm mới trạng thái...', 'ok');
+          setTimeout(function () { loadOverview(); loadUpdaterTab(); }, 3500);
+        }).catch(function (e) { toast(e.message, 'err'); loadUpdaterTab(); });
+        return;
+      }
+      if (act === 'rollback-gh-update') {
+        var bkp = btn.getAttribute('data-bkp') || '';
+        if (!confirm('Khôi phục tức thời (Instant Rollback) từ bản sao lưu ' + bkp + '?')) return;
+        toast('Đang khôi phục bản sao lưu & khởi động lại dịch vụ...');
+        api('rollback_github_update', { params: { backup_file: bkp } }).then(function () {
+          toast('Đã kích hoạt Instant Rollback thành công!', 'ok');
+          setTimeout(function () { loadOverview(); loadUpdaterTab(); }, 3000);
         }).catch(function (e) { toast(e.message, 'err'); });
       }
     });

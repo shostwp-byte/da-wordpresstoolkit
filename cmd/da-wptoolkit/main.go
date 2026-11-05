@@ -32,6 +32,7 @@ import (
 	"github.com/shostwp-byte/da-wptoolkits/internal/smartupdate"
 	"github.com/shostwp-byte/da-wptoolkits/internal/snapshot"
 	"github.com/shostwp-byte/da-wptoolkits/internal/store"
+	"github.com/shostwp-byte/da-wptoolkits/internal/updater"
 	"github.com/shostwp-byte/da-wptoolkits/internal/version"
 	"github.com/shostwp-byte/da-wptoolkits/internal/vulndb"
 	"github.com/shostwp-byte/da-wptoolkits/internal/webserver"
@@ -137,6 +138,30 @@ func main() {
 
 	case "cleanup-owner":
 		err = runCleanupOwnerCLI(os.Args[2:])
+
+	case "hook":
+		err = runDAHookCLI(os.Args[2:])
+
+	case "check-update":
+		err = runCheckUpdateCLI(os.Args[2:])
+
+	case "update":
+		err = runSelfUpdateCLI(os.Args[2:])
+
+	case "rollback":
+		err = runRollbackCLI(os.Args[2:])
+
+	case "apply-staged":
+		err = runApplyStagedCLI(os.Args[2:])
+
+	case "keygen":
+		err = runKeygenCLI()
+
+	case "sign-release":
+		err = runSignReleaseCLI(os.Args[2:])
+
+	case "verify-release":
+		err = runVerifyReleaseCLI(os.Args[2:])
 
 	case "help", "-h", "--help":
 		printUsage()
@@ -252,6 +277,14 @@ func runServe(args []string) error {
 	svc.QuickTools = qtManager
 	svc.Snapshots = snapManager
 	svc.CloneSync = cloneEngine
+
+	updManager := updater.NewManager(*stateDir, st)
+	updManager.AdminSockPath = *adminSock
+	updManager.BinPath = getenvOr("DA_WPTK_BIN_PATH", updater.DefaultBinPath)
+	updManager.PluginDir = getenvOr("DA_WPTK_PLUGIN_DIR", updater.DefaultPluginDir)
+	updManager.HooksBaseDir = getenvOr("DA_WPTK_CUSTOM_HOOKS_DIR", updater.DefaultHooksBaseDir)
+	updManager.ShareDir = getenvOr("DA_WPTK_SHARE_DIR", updater.DefaultShareDir)
+	svc.Updater = updManager
 
 	srv := ipc.NewServer(*adminSock, *userSock, svc)
 
@@ -1451,5 +1484,243 @@ func printUsage() {
 	fmt.Println("  da-wptoolkit sync           Bidirectional Staging Sync preserving WooCommerce orders (<wp_id>)")
 	fmt.Println("  da-wptoolkit backup-hook    DirectAdmin backup pre/post Fortress Lock hook (pre|post --user <u>)")
 	fmt.Println("  da-wptoolkit cleanup-owner  Purge destroyed DirectAdmin account data (--user <u>)")
+	fmt.Println("  da-wptoolkit hook           Dispatch DirectAdmin lifecycle hook (<event> --user <u> [--domain <d>])")
+	fmt.Println("  da-wptoolkit check-update   Check GitHub Releases for newer Ed25519-signed versions")
+	fmt.Println("  da-wptoolkit update         Verify Ed25519 + SHA-256 & atomically update with Auto-Rollback")
+	fmt.Println("  da-wptoolkit rollback       Instant rollback to previous snapshot backup")
+	fmt.Println("  da-wptoolkit keygen         Generate Ed25519 release signing keypair (hex)")
+	fmt.Println("  da-wptoolkit sign-release   Generate checksums.txt & Ed25519 checksums.txt.sig (--dir <path>)")
+	fmt.Println("  da-wptoolkit verify-release Verify Ed25519 checksums.txt.sig & SHA-256 digests (--dir <path>)")
 	fmt.Println("  da-wptoolkit version        Print build version information")
+}
+
+func runDAHookCLI(args []string) error {
+	evName, rest := extractPositionalID(args)
+	fs := flag.NewFlagSet("hook", flag.ContinueOnError)
+	sock := fs.String("sock", getenvOr("DA_WPTK_ADMIN_SOCK", ipc.DefaultAdminSocketPath), "Admin Unix socket path")
+	event := fs.String("event", evName, "Hook event name (domain_create|domain_destroy|subdomain_create|subdomain_destroy|user_modify|user_backup_pre|user_backup_post|user_restore|user_destroy)")
+	user := fs.String("user", "", "DirectAdmin username")
+	domain := fs.String("domain", "", "Target domain name")
+	subdomain := fs.String("subdomain", "", "Target subdomain label")
+	asJSON := fs.Bool("json", false, "Emit raw JSON output")
+	if err := fs.Parse(rest); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*event) == "" {
+		return errors.New("hook <event> is required")
+	}
+
+	cli := ipc.NewClient(*sock)
+	cli.Timeout = 60 * time.Second
+	resp, err := cli.Send(context.Background(), ipc.Request{
+		Action:   "handle_da_hook",
+		Username: strings.TrimSpace(*user),
+		Params: map[string]any{
+			"event":     strings.TrimSpace(*event),
+			"username":  strings.TrimSpace(*user),
+			"domain":    strings.TrimSpace(*domain),
+			"subdomain": strings.TrimSpace(*subdomain),
+		},
+	})
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		return emitPrettyJSON(resp)
+	}
+	return emitPrettyJSON(resp.Data)
+}
+
+func newStandaloneUpdater(stateDir, sockPath string) (*updater.Manager, config.UpdaterConfig) {
+	st, _ := store.Open(stateDir)
+	pol := config.NewPolicyStore(
+		getenvOr("DA_WPTK_DATA_DIR", DefaultPluginDataDir),
+		getenvOr("DA_WPTK_UPDATER_CONF", DefaultUpdaterCfgPath),
+	)
+	cfg, _ := pol.LoadUpdaterConfig(version.DefaultGitHubRepo)
+	mgr := updater.NewManager(stateDir, st)
+	mgr.AdminSockPath = sockPath
+	mgr.BinPath = getenvOr("DA_WPTK_BIN_PATH", updater.DefaultBinPath)
+	mgr.PluginDir = getenvOr("DA_WPTK_PLUGIN_DIR", updater.DefaultPluginDir)
+	mgr.HooksBaseDir = getenvOr("DA_WPTK_CUSTOM_HOOKS_DIR", updater.DefaultHooksBaseDir)
+	mgr.ShareDir = getenvOr("DA_WPTK_SHARE_DIR", updater.DefaultShareDir)
+	if apiBase := strings.TrimSpace(os.Getenv("DA_WPTK_GITHUB_API_BASE")); apiBase != "" {
+		mgr.APIBaseURL = apiBase
+	}
+	return mgr, cfg
+}
+
+func runCheckUpdateCLI(args []string) error {
+	fs := flag.NewFlagSet("check-update", flag.ContinueOnError)
+	sock := fs.String("sock", getenvOr("DA_WPTK_ADMIN_SOCK", ipc.DefaultAdminSocketPath), "Admin Unix socket path")
+	stateDir := fs.String("state-dir", getenvOr("DA_WPTK_STATE_DIR", store.DefaultStateDir), "Persistent state directory")
+	tag := fs.String("tag", "", "Optional specific release tag to inspect")
+	asJSON := fs.Bool("json", false, "Emit raw JSON output")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	cli := ipc.NewClient(*sock)
+	resp, err := cli.Send(context.Background(), ipc.Request{
+		Action: "check_github_update",
+		Params: map[string]any{"tag": strings.TrimSpace(*tag)},
+	})
+	if err == nil && resp.OK {
+		if *asJSON {
+			return emitPrettyJSON(resp)
+		}
+		return emitPrettyJSON(resp.Data)
+	}
+
+	mgr, cfg := newStandaloneUpdater(*stateDir, *sock)
+	rel, cErr := mgr.CheckLatest(context.Background(), cfg, strings.TrimSpace(*tag))
+	if cErr != nil {
+		return cErr
+	}
+	return emitPrettyJSON(rel)
+}
+
+func runSelfUpdateCLI(args []string) error {
+	fs := flag.NewFlagSet("update", flag.ContinueOnError)
+	sock := fs.String("sock", getenvOr("DA_WPTK_ADMIN_SOCK", ipc.DefaultAdminSocketPath), "Admin Unix socket path")
+	stateDir := fs.String("state-dir", getenvOr("DA_WPTK_STATE_DIR", store.DefaultStateDir), "Persistent state directory")
+	tag := fs.String("tag", "", "Specific GitHub release tag (default: latest for channel)")
+	force := fs.Bool("force", false, "Reinstall even if already on latest version")
+	asJSON := fs.Bool("json", false, "Emit raw JSON output")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	mgr, cfg := newStandaloneUpdater(*stateDir, *sock)
+	out, err := mgr.PerformUpdate(context.Background(), cfg, strings.TrimSpace(*tag), *force, false)
+	if *asJSON {
+		_ = emitPrettyJSON(out)
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Updated DA-WordPressToolkits %s -> %s in %dms (backup: %s)\n", out.PreviousVersion, out.TargetVersion, out.ElapsedMs, out.BackupPath)
+	return nil
+}
+
+func runRollbackCLI(args []string) error {
+	fs := flag.NewFlagSet("rollback", flag.ContinueOnError)
+	sock := fs.String("sock", getenvOr("DA_WPTK_ADMIN_SOCK", ipc.DefaultAdminSocketPath), "Admin Unix socket path")
+	stateDir := fs.String("state-dir", getenvOr("DA_WPTK_STATE_DIR", store.DefaultStateDir), "Persistent state directory")
+	backup := fs.String("backup", "", "Specific backup archive filename (default: latest)")
+	listOnly := fs.Bool("list", false, "List available rollback snapshot backups")
+	noRestart := fs.Bool("no-restart", false, "Restore files without calling systemctl restart")
+	asJSON := fs.Bool("json", false, "Emit raw JSON output")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	mgr, _ := newStandaloneUpdater(*stateDir, *sock)
+	if *listOnly {
+		items, err := mgr.ListBackups()
+		if err != nil {
+			return err
+		}
+		if *asJSON {
+			return emitPrettyJSON(items)
+		}
+		if len(items) == 0 {
+			fmt.Println("No rollback backups found.")
+			return nil
+		}
+		for _, it := range items {
+			fmt.Printf("  - %-40s version=%-10s size=%dB created=%s\n", it.FileName, it.Version, it.SizeBytes, it.CreatedAt.Format(time.RFC3339))
+		}
+		return nil
+	}
+	bkp, err := mgr.RestoreBackup(context.Background(), strings.TrimSpace(*backup), !*noRestart)
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		return emitPrettyJSON(bkp)
+	}
+	fmt.Printf("Rolled back to %s (%s)\n", bkp.Version, bkp.FileName)
+	return nil
+}
+
+func runApplyStagedCLI(args []string) error {
+	fs := flag.NewFlagSet("apply-staged", flag.ContinueOnError)
+	sock := fs.String("sock", getenvOr("DA_WPTK_ADMIN_SOCK", ipc.DefaultAdminSocketPath), "Admin Unix socket path")
+	stateDir := fs.String("state-dir", getenvOr("DA_WPTK_STATE_DIR", store.DefaultStateDir), "Persistent state directory")
+	staged := fs.String("staged", "", "Verified extracted payload directory (required)")
+	backup := fs.String("backup", "", "Pre-update rollback archive path (required)")
+	targetVer := fs.String("target-version", "", "Target release version tag")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*staged) == "" || strings.TrimSpace(*backup) == "" {
+		return errors.New("--staged and --backup are required")
+	}
+
+	mgr, _ := newStandaloneUpdater(*stateDir, *sock)
+	out, err := mgr.ApplyStagedWithAutoRollback(context.Background(), strings.TrimSpace(*staged), strings.TrimSpace(*backup), strings.TrimSpace(*targetVer))
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Applied staged release %s (%dms)\n", out.TargetVersion, out.ElapsedMs)
+	return nil
+}
+
+func runKeygenCLI() error {
+	privHex, pubHex, err := updater.GenerateKeyPairHex()
+	if err != nil {
+		return err
+	}
+	fmt.Println("Generated Ed25519 Release Signing Keypair:")
+	fmt.Printf("  PUBLIC_KEY_HEX  (embed in DefaultReleasePublicKeyHex)          : %s\n", pubHex)
+	fmt.Printf("  PRIVATE_KEY_HEX (GitHub Secret RELEASE_ED25519_PRIVATE_KEY)    : %s\n", privHex)
+	return nil
+}
+
+func runSignReleaseCLI(args []string) error {
+	fs := flag.NewFlagSet("sign-release", flag.ContinueOnError)
+	dir := fs.String("dir", "dist/release", "Directory containing release .tar.gz artifacts")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	rawKey := strings.TrimSpace(os.Getenv("DA_WPTK_RELEASE_PRIVATE_KEY"))
+	if rawKey == "" {
+		return errors.New("DA_WPTK_RELEASE_PRIVATE_KEY environment variable is required")
+	}
+	privKey, err := updater.ParsePrivateKey(rawKey)
+	if err != nil {
+		return err
+	}
+	csPath, sigPath, digests, err := updater.SignChecksumsDir(strings.TrimSpace(*dir), privKey)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Signed %d artifacts:\n  checksums : %s\n  signature : %s\n", len(digests), csPath, sigPath)
+	return nil
+}
+
+func runVerifyReleaseCLI(args []string) error {
+	fs := flag.NewFlagSet("verify-release", flag.ContinueOnError)
+	dir := fs.String("dir", "dist/release", "Directory containing checksums.txt, checksums.txt.sig, and artifacts")
+	pubKey := fs.String("pub-key", version.DefaultReleasePublicKeyHex, "Hex-encoded 32-byte Ed25519 public key")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	cleanDir := strings.TrimSpace(*dir)
+	csBytes, err := os.ReadFile(filepath.Join(cleanDir, "checksums.txt"))
+	if err != nil {
+		return err
+	}
+	sigBytes, err := os.ReadFile(filepath.Join(cleanDir, "checksums.txt.sig"))
+	if err != nil {
+		return err
+	}
+	digests, err := updater.VerifyChecksumsSignature(csBytes, sigBytes, strings.TrimSpace(*pubKey))
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Verified Ed25519 signature over %d release artifacts in %s\n", len(digests), cleanDir)
+	return nil
 }

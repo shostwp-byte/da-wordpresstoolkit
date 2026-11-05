@@ -5,7 +5,7 @@
 
   <p>
     <a href="https://github.com/shostwp-byte/da-wordpresstoolkit/actions/workflows/ci.yml"><img src="https://github.com/shostwp-byte/da-wordpresstoolkit/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
-    <img src="https://img.shields.io/badge/version-v0.6.0-4f46e5" alt="Version v0.6.0" />
+    <img src="https://img.shields.io/badge/version-v1.0.0-4f46e5" alt="Version v1.0.0" />
     <img src="https://img.shields.io/badge/Go-1.22%2B%20(CGO__ENABLED%3D0)-00ADD8?logo=go&logoColor=white" alt="Pure Go 1.22+" />
     <img src="https://img.shields.io/badge/dependencies-0%20external-10b981" alt="Zero External Dependencies" />
     <img src="https://img.shields.io/badge/DirectAdmin-Evolution%20Skin-2563eb" alt="DirectAdmin Evolution Skin" />
@@ -110,6 +110,7 @@ DA-WordPressToolkits/
 │   ├── smartupdate/          # Cập nhật thông minh kèm kiểm tra HTTP & hoàn tác tự động < 3s
 │   ├── snapshot/             # Nén & giải nén bản sao lưu Zstandard (.tar.zst RFC 8878)
 │   ├── store/                # Kho lưu trữ JSON nguyên tử (Atomic Write) & Nhật ký bảo mật
+│   ├── updater/              # Tự động cập nhật xác thực chữ ký số Ed25519 + Auto-Rollback < 10s
 │   ├── version/              # Định danh phiên bản & khóa công khai Ed25519 xác thực bản phát hành
 │   ├── vulndb/               # Đồng bộ & đối chiếu cơ sở dữ liệu lỗ hổng Wordfence CVE
 │   ├── webserver/            # Bộ điều hợp cấu hình Apache, LiteSpeed, OpenLiteSpeed & Nginx
@@ -119,10 +120,12 @@ DA-WordPressToolkits/
 │   ├── user/                 # Giao diện WordPress Manager cho End-User & Chunked Upload api.php
 │   ├── hooks/                # Điểm gắn menu & biểu tượng trên DirectAdmin Evolution Skin
 │   ├── images/               # Biểu tượng vector SVG cho User & Admin
+│   ├── scripts/              # Vòng đời cài đặt / cập nhật / gỡ bỏ qua DirectAdmin Plugin Manager
 │   └── plugin.conf           # Khai báo metadata plugin DirectAdmin
-├── scripts/                  # Kịch bản kiểm thử nghiệm thu (qa_verify.sh) & DirectAdmin Backup Hooks
+├── scripts/                  # Trình cài đặt 1-Click (install/uninstall/update/package) & QA
+│   └── da_hooks/             # 9 DirectAdmin Lifecycle Subdirectory Hooks (User/Domain/Backup)
 ├── systemd/                  # Cấu hình dịch vụ hệ thống da-wptoolkitd.service
-└── docs/                     # Tài liệu đặc tả giao thức IPC & kiến trúc bảo mật
+└── docs/                     # Đặc tả giao thức IPC & Sổ tay vận hành hệ thống (RUNBOOK.md)
 ```
 
 ---
@@ -133,6 +136,24 @@ DA-WordPressToolkits/
 - **Control Panel:** DirectAdmin `1.670+` sử dụng giao diện **Evolution Skin**.
 - **Web Server hỗ trợ:** OpenLiteSpeed, LiteSpeed Enterprise, Apache (`mod_ruid2` / `PHP-FPM`) hoặc Nginx Standalone / Reverse Proxy.
 - **Cơ sở dữ liệu & Công cụ:** MySQL `8.0+` hoặc MariaDB `10.4+` – `11.x`, PHP CLI (CustomBuild) và `wp-cli` (`/usr/local/bin/wp`).
+
+---
+
+## Cài Đặt 1-Click Trên Máy Chủ DirectAdmin (`root`)
+
+```bash
+git clone https://github.com/shostwp-byte/da-wordpresstoolkit.git
+cd da-wordpresstoolkit
+sudo bash scripts/install.sh
+```
+
+Trình cài đặt `scripts/install.sh` tự động kiểm tra kiến trúc CPU (`amd64` / `arm64`), xác thực `SHA-512` của `wp-cli`, cấu hình hạn mức nhân `fs.inotify.max_user_watches = 524288`, triển khai nhị phân `/usr/local/sbin/da-wptoolkit`, giao diện Evolution Skin, toàn bộ **9 DirectAdmin Lifecycle Hooks**, khởi chạy `da-wptoolkitd.service`, đồng bộ dữ liệu CVE và quét nhận diện toàn bộ website WordPress hiện có.
+
+Để đóng gói trọn bộ hiện vật phát hành (`da-wptoolkit-linux-amd64.tar.gz`, `da-wptoolkit-linux-arm64.tar.gz` và gói `da_wp_toolkits.tar.gz` cho **DirectAdmin Plugin Manager**):
+
+```bash
+make package
+```
 
 ---
 
@@ -158,10 +179,10 @@ make build-linux-arm64
 ### 3. Chạy bộ kiểm thử tự động
 
 ```bash
-# Chạy toàn bộ 22 package kiểm thử tích hợp & bảo mật
+# Chạy toàn bộ 23 package kiểm thử tích hợp, bảo mật & Stress Test (500 accounts / 1.000 sites)
 CGO_ENABLED=0 go test -v -race ./...
 
-# Trên máy chủ DirectAdmin thực tế: kiểm tra trạng thái socket, daemon và hooks
+# Trên máy chủ DirectAdmin thực tế: kiểm tra trạng thái socket, daemon và 9 hooks
 bash scripts/qa_verify.sh preflight
 ```
 
@@ -182,6 +203,11 @@ da-wptoolkit list --vuln
 # Kiểm tra tính toàn vẹn nhân WordPress và đồng bộ dữ liệu lỗ hổng CVE
 da-wptoolkit verify-core --all
 da-wptoolkit sync-vulndb
+
+# Kiểm tra, cập nhật nguyên tử xác thực Ed25519 và khôi phục tức thời (Rollback)
+da-wptoolkit check-update
+da-wptoolkit update
+da-wptoolkit rollback --list
 ```
 
 ---
@@ -194,12 +220,13 @@ da-wptoolkit sync-vulndb
 - [x] **Giai đoạn 3 (`v0.4.0`):** Bộ điều hợp Đa Web Server (Apache/LiteSpeed/OpenLiteSpeed/Nginx), 12 quy tắc gia cố bảo mật & **Core Integrity Shield** (`inotify` Auto-Heal + Quarantine Diff + Fortress Core Lock + Backup Hooks).
 - [x] **Giai đoạn 4 (`v0.5.0`):** Bộ công cụ **Plesk Quick Tools**, sao lưu nén **Zstd Snapshots (`.tar.zst`)** & nhân bản **Clone / Staging / Bidirectional Sync** bảo toàn đơn hàng WooCommerce.
 - [x] **Giai đoạn 5 (`v0.6.0`):** Hoàn thiện giao diện **End-User WordPress Manager SPA** (Indigo/Slate, Dark Mode, VI/EN, Chunked `.zip` Upload 64 MB) & **Server Admin Console 4 Tabs** trên Evolution Skin.
-- [ ] **Giai đoạn 6 (`v1.0.0`):** DirectAdmin Lifecycle Event Hooks tự động hóa theo sự kiện tạo/xóa User & Domain, hoàn thiện thực thi cập nhật tự động xác thực chữ ký số Ed25519, Stress Test tải cao & đóng gói gói cài đặt `da-wptoolkit.tar.gz`.
+- [x] **Giai đoạn 6 (`v1.0.0`):** Bộ **9 DirectAdmin Lifecycle Subdirectory Hooks**, trình tự động cập nhật xác thực chữ ký số **Ed25519 + Auto-Rollback `< 10s`**, Stress Test mật độ cao (`500` tài khoản / `1.000` site `< 25 MB RAM`) & đóng gói phát hành `v1.0.0`.
 
 ---
 
 ## Tài Liệu Kỹ Thuật
 
+- [Sổ Tay Vận Hành Hệ Thống & Xử Lý Sự Cố (`docs/RUNBOOK.md`)](./docs/RUNBOOK.md)
 - [Đặc Tả Giao Thức IPC & Xác Thực 3 Lớp (`docs/IPC_PROTOCOL.md`)](./docs/IPC_PROTOCOL.md)
 - [Đặc Tả Kỹ Thuật & Kế Hoạch Phát Triển Chi Tiết](./plan/Đặc%20Tả%20Kỹ%20Thuật%20&%20Kế%20Hoạch%20Phát%20Triển%20DA-WordPressToolkits.md)
 

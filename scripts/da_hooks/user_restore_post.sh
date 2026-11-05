@@ -2,7 +2,7 @@
 set -uo pipefail
 
 # DirectAdmin Subdirectory Hook: /usr/local/directadmin/scripts/custom/user_restore_post/da_wp_toolkits.sh
-# Automatically discovers and registers WordPress instances after account restore or server migration.
+# Reloads user registry and auto-discovers WordPress instances after account restore or migration (cPanel/Plesk/DA).
 
 BIN="${DA_WPTK_BIN:-/usr/local/sbin/da-wptoolkit}"
 ADMIN_SOCK="${DA_WPTK_ADMIN_SOCK:-/var/run/da-wptoolkit.sock}"
@@ -10,7 +10,7 @@ ADMIN_SOCK="${DA_WPTK_ADMIN_SOCK:-/var/run/da-wptoolkit.sock}"
 TARGET_USER="${username:-}"
 
 if [[ -n "$TARGET_USER" && -x "$BIN" && -S "$ADMIN_SOCK" ]]; then
-  "$BIN" scan --user "$TARGET_USER" --sock "$ADMIN_SOCK" >/dev/null 2>&1 || true
+  "$BIN" hook user_restore --user "$TARGET_USER" --sock "$ADMIN_SOCK" >/dev/null 2>&1 || true
 fi
 
 exit 0

@@ -15,7 +15,9 @@ import (
 	"time"
 
 	"github.com/shostwp-byte/da-wptoolkits/internal/config"
+	"github.com/shostwp-byte/da-wptoolkits/internal/dausers"
 	"github.com/shostwp-byte/da-wptoolkits/internal/ipc"
+	"github.com/shostwp-byte/da-wptoolkits/internal/updater"
 	"github.com/shostwp-byte/da-wptoolkits/internal/version"
 )
 
@@ -174,6 +176,12 @@ func (s *Service) handlePhase5AdminAction(
 		if err != nil {
 			return ipc.Response{OK: false, Code: 500, Error: err.Error()}
 		}
+		var backups []updater.BackupEntry
+		var lastOutcome *updater.UpdateOutcome
+		if s.Updater != nil {
+			backups, _ = s.Updater.ListBackups()
+			lastOutcome = s.Updater.LastOutcome()
+		}
 		return ipc.Response{
 			OK:        true,
 			CSRFToken: issuedCSRF,
@@ -186,6 +194,8 @@ func (s *Service) handlePhase5AdminAction(
 				"update_channel":   cfg.UpdateChannel,
 				"backup_retention": cfg.BackupRetention,
 				"has_github_token": cfg.GitHubToken != "",
+				"backups":          backups,
+				"last_outcome":     lastOutcome,
 			},
 		}
 
@@ -218,21 +228,100 @@ func (s *Service) handlePhase5AdminAction(
 		}
 
 	case "check_github_update":
-		cfg := config.UpdaterConfig{
-			GitHubRepo:      version.DefaultGitHubRepo,
-			UpdateChannel:   config.DefaultChannelStable,
-			BackupRetention: config.DefaultBackupRetention,
-		}
-		if s.Policies != nil {
-			if loaded, lErr := s.Policies.LoadUpdaterConfig(version.DefaultGitHubRepo); lErr == nil {
-				cfg = loaded
+		cfg := s.loadEffectiveUpdaterConfig()
+		if s.Updater != nil {
+			if strings.TrimSpace(s.GitHubAPIBase) != "" {
+				s.Updater.APIBaseURL = s.GitHubAPIBase
 			}
+			rel, err := s.Updater.CheckLatest(ctx, cfg, paramString(req.Params, "tag"))
+			if err != nil {
+				return ipc.Response{OK: false, Code: 502, Error: err.Error()}
+			}
+			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: rel}
 		}
 		relInfo, err := s.queryGitHubLatestRelease(ctx, cfg)
 		if err != nil {
 			return ipc.Response{OK: false, Code: 502, Error: err.Error()}
 		}
 		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: relInfo}
+
+	case "list_update_backups":
+		if s.Updater == nil {
+			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"backups": []updater.BackupEntry{}, "last_outcome": nil}}
+		}
+		backups, err := s.Updater.ListBackups()
+		if err != nil {
+			return ipc.Response{OK: false, Code: 500, Error: err.Error()}
+		}
+		return ipc.Response{
+			OK:        true,
+			CSRFToken: issuedCSRF,
+			Data: map[string]any{
+				"backups":      backups,
+				"last_outcome": s.Updater.LastOutcome(),
+			},
+		}
+
+	case "apply_github_update":
+		if s.Updater == nil {
+			return ipc.Response{OK: false, Code: 503, Error: "self-updater manager is not configured"}
+		}
+		if strings.TrimSpace(s.GitHubAPIBase) != "" {
+			s.Updater.APIBaseURL = s.GitHubAPIBase
+		}
+		cfg := s.loadEffectiveUpdaterConfig()
+		tag := paramString(req.Params, "tag")
+		force := paramBool(req.Params, "force", false)
+		syncRun := paramBool(req.Params, "sync", false)
+		outcome, err := s.Updater.PerformUpdate(ctx, cfg, tag, force, !syncRun)
+		if err != nil {
+			return ipc.Response{
+				OK:        false,
+				Code:      500,
+				CSRFToken: issuedCSRF,
+				Error:     err.Error(),
+				Data:      outcome,
+			}
+		}
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: outcome}
+
+	case "rollback_github_update":
+		if s.Updater == nil {
+			return ipc.Response{OK: false, Code: 503, Error: "self-updater manager is not configured"}
+		}
+		backupFile := paramString(req.Params, "backup_file")
+		syncRun := paramBool(req.Params, "sync", false)
+		if !syncRun {
+			// Restore files synchronously so errors surface immediately, then schedule restart asynchronously
+			bkp, err := s.Updater.RestoreBackup(ctx, backupFile, false)
+			if err != nil {
+				return ipc.Response{OK: false, Code: 400, CSRFToken: issuedCSRF, Error: err.Error()}
+			}
+			go func() {
+				time.Sleep(350 * time.Millisecond)
+				bgCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+				defer cancel()
+				if s.Updater.RestartDaemon != nil {
+					_ = s.Updater.RestartDaemon(bgCtx)
+				}
+			}()
+			return ipc.Response{
+				OK:        true,
+				CSRFToken: issuedCSRF,
+				Data: map[string]any{
+					"restored":   bkp,
+					"restarting": true,
+				},
+			}
+		}
+		bkp, err := s.Updater.RestoreBackup(ctx, backupFile, true)
+		if err != nil {
+			return ipc.Response{OK: false, Code: 500, CSRFToken: issuedCSRF, Error: err.Error()}
+		}
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"restored": bkp, "restarting": false}}
+
+	case "handle_da_hook":
+		return s.handleDirectAdminHookEvent(ctx, req, issuedCSRF)
 	}
 
 	return ipc.Response{OK: false, Code: 501, Error: "unsupported admin action: " + action}
@@ -430,4 +519,235 @@ func parseSemVerParts(tag string) ([3]int, string) {
 		nums[i], _ = strconv.Atoi(segs[i])
 	}
 	return nums, pre
+}
+
+func (s *Service) loadEffectiveUpdaterConfig() config.UpdaterConfig {
+	cfg := config.UpdaterConfig{
+		GitHubRepo:      version.DefaultGitHubRepo,
+		UpdateChannel:   config.DefaultChannelStable,
+		BackupRetention: config.DefaultBackupRetention,
+	}
+	if s.Policies != nil {
+		if loaded, err := s.Policies.LoadUpdaterConfig(version.DefaultGitHubRepo); err == nil {
+			cfg = loaded
+		}
+	}
+	return cfg
+}
+
+// handleDirectAdminHookEvent processes all 9 DirectAdmin custom lifecycle hooks idempotently.
+func (s *Service) handleDirectAdminHookEvent(ctx context.Context, req ipc.Request, issuedCSRF string) ipc.Response {
+	ev := strings.ToLower(strings.TrimSpace(paramString(req.Params, "event")))
+	owner := strings.TrimSpace(req.Username)
+	if owner == "" {
+		owner = strings.TrimSpace(paramString(req.Params, "username"))
+	}
+	domain := strings.ToLower(strings.TrimSpace(paramString(req.Params, "domain")))
+	sub := strings.ToLower(strings.TrimSpace(paramString(req.Params, "subdomain")))
+
+	if s.Users != nil {
+		_ = s.Users.Reload()
+	}
+
+	switch ev {
+	case "domain_create", "subdomain_create":
+		if owner == "" {
+			return ipc.Response{OK: false, Code: 400, Error: "username is required for " + ev}
+		}
+		acct, ok := s.Users.LookupByUsername(owner)
+		if !ok {
+			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"event": ev, "skipped": "user_not_found"}}
+		}
+		var discovered int
+		if s.Scanner != nil {
+			if res, sErr := s.Scanner.ScanAccount(acct, false); sErr == nil {
+				discovered = res.DiscoveredTotal
+			}
+		}
+		if s.Shield != nil {
+			s.Shield.SyncAllWatches()
+		}
+		return ipc.Response{
+			OK:        true,
+			CSRFToken: issuedCSRF,
+			Data: map[string]any{
+				"event":      ev,
+				"username":   owner,
+				"domain":     domain,
+				"subdomain":  sub,
+				"discovered": discovered,
+			},
+		}
+
+	case "domain_destroy":
+		if owner == "" || domain == "" {
+			return ipc.Response{OK: false, Code: 400, Error: "username and domain are required for domain_destroy"}
+		}
+		var acct dausers.Account
+		if s.Users != nil {
+			acct, _ = s.Users.LookupByUsername(owner)
+		}
+		var removedIDs []string
+		for _, inst := range s.Store.ListInstancesByOwner(owner) {
+			instDom := strings.ToLower(strings.TrimSpace(inst.Domain))
+			if instDom == domain || strings.HasSuffix(instDom, "."+domain) {
+				s.cleanupInstanceSecurityArtifacts(ctx, acct, inst)
+				if s.Snapshots != nil {
+					s.Snapshots.PurgeInstance(acct, inst.ID)
+				}
+				_ = s.Store.DeleteInstance(inst.ID)
+				removedIDs = append(removedIDs, inst.ID)
+			}
+		}
+		return ipc.Response{
+			OK:        true,
+			CSRFToken: issuedCSRF,
+			Data: map[string]any{
+				"event":       ev,
+				"username":    owner,
+				"domain":      domain,
+				"removed_ids": removedIDs,
+			},
+		}
+
+	case "subdomain_destroy":
+		if owner == "" || domain == "" || sub == "" {
+			return ipc.Response{OK: false, Code: 400, Error: "username, domain, and subdomain are required for subdomain_destroy"}
+		}
+		fqdn := sub
+		if !strings.HasSuffix(fqdn, "."+domain) {
+			fqdn = sub + "." + domain
+		}
+		var acct dausers.Account
+		if s.Users != nil {
+			acct, _ = s.Users.LookupByUsername(owner)
+		}
+		legacyPrefix := ""
+		if acct.HomeDir != "" {
+			legacyPrefix = filepath.Clean(filepath.Join(acct.HomeDir, "domains", domain, "public_html", sub))
+		}
+		var removedIDs []string
+		for _, inst := range s.Store.ListInstancesByOwner(owner) {
+			instDom := strings.ToLower(strings.TrimSpace(inst.Domain))
+			cleanDoc := filepath.Clean(inst.DocRoot)
+			matchLegacy := legacyPrefix != "" && (cleanDoc == legacyPrefix || strings.HasPrefix(cleanDoc, legacyPrefix+string(os.PathSeparator)))
+			if instDom == fqdn || matchLegacy {
+				s.cleanupInstanceSecurityArtifacts(ctx, acct, inst)
+				if s.Snapshots != nil {
+					s.Snapshots.PurgeInstance(acct, inst.ID)
+				}
+				_ = s.Store.DeleteInstance(inst.ID)
+				removedIDs = append(removedIDs, inst.ID)
+			}
+		}
+		return ipc.Response{
+			OK:        true,
+			CSRFToken: issuedCSRF,
+			Data: map[string]any{
+				"event":       ev,
+				"username":    owner,
+				"subdomain":   fqdn,
+				"removed_ids": removedIDs,
+			},
+		}
+
+	case "user_modify":
+		if owner == "" {
+			return ipc.Response{OK: false, Code: 400, Error: "username is required for user_modify"}
+		}
+		acct, ok := s.Users.LookupByUsername(owner)
+		if !ok {
+			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"event": ev, "skipped": "user_not_found"}}
+		}
+		pol := config.DefaultPackagePolicy()
+		if s.Policies != nil {
+			if p, pErr := s.Policies.ResolvePackagePolicy(acct.Package); pErr == nil {
+				pol = p
+			}
+		}
+		var unlockedIDs []string
+		if !pol.AllowCoreFortressLock && s.Shield != nil {
+			for _, inst := range s.Store.ListInstancesByOwner(owner) {
+				if inst.CoreShieldMode == config.ShieldModeFortressLock {
+					if _, mErr := s.Shield.SetMode(ctx, acct, inst.ID, config.ShieldModeAutoHeal, false); mErr == nil {
+						unlockedIDs = append(unlockedIDs, inst.ID)
+					}
+				}
+			}
+		}
+		return ipc.Response{
+			OK:        true,
+			CSRFToken: issuedCSRF,
+			Data: map[string]any{
+				"event":        ev,
+				"username":     owner,
+				"package":      acct.Package,
+				"suspended":    acct.Suspended,
+				"unlocked_ids": unlockedIDs,
+			},
+		}
+
+	case "user_backup_pre":
+		if s.Shield == nil {
+			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"unlocked_ids": []string{}}}
+		}
+		ids, err := s.Shield.PrepareUserBackup(owner)
+		if err != nil {
+			return ipc.Response{OK: false, Code: 400, Error: err.Error()}
+		}
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"event": ev, "unlocked_ids": ids}}
+
+	case "user_backup_post":
+		if s.Shield == nil {
+			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"relocked_ids": []string{}}}
+		}
+		ids, err := s.Shield.FinishUserBackup(owner)
+		if err != nil {
+			return ipc.Response{OK: false, Code: 400, Error: err.Error()}
+		}
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"event": ev, "relocked_ids": ids}}
+
+	case "user_restore":
+		if owner == "" {
+			return ipc.Response{OK: false, Code: 400, Error: "username is required for user_restore"}
+		}
+		acct, ok := s.Users.LookupByUsername(owner)
+		if !ok {
+			return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"event": ev, "skipped": "user_not_found"}}
+		}
+		var res any
+		if s.Scanner != nil {
+			scanRes, sErr := s.Scanner.ScanAccount(acct, true)
+			if sErr != nil {
+				return ipc.Response{OK: false, Code: 500, Error: sErr.Error()}
+			}
+			res = scanRes
+		}
+		if s.Shield != nil {
+			s.Shield.SyncAllWatches()
+		}
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"event": ev, "username": owner, "scan": res}}
+
+	case "user_destroy":
+		if owner == "" {
+			return ipc.Response{OK: false, Code: 400, Error: "username is required for user_destroy"}
+		}
+		if s.Shield != nil {
+			s.Shield.CleanupOwner(owner)
+		}
+		if s.WebServer != nil {
+			_ = s.WebServer.RemoveOwnerConfigs(ctx, owner)
+		}
+		if s.Snapshots != nil {
+			s.Snapshots.PurgeOwner(owner)
+		}
+		removed, dErr := s.Store.DeleteInstancesByOwner(owner)
+		if dErr != nil {
+			return ipc.Response{OK: false, Code: 400, Error: dErr.Error()}
+		}
+		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"event": ev, "username": owner, "removed_instances": removed}}
+
+	default:
+		return ipc.Response{OK: false, Code: 400, Error: "unknown DirectAdmin hook event: " + ev}
+	}
 }

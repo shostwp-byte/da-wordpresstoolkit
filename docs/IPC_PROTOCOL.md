@@ -70,7 +70,7 @@ Khi xảy ra lỗi xác thực, giới hạn tần suất hoặc lỗi nghiệp 
 
 ---
 
-## 4. Danh mục Action IPC (Giai đoạn 0, 1, 2, 3, 4 & 5)
+## 4. Danh mục Action IPC (Giai đoạn 0, 1, 2, 3, 4, 5 & 6 — `v1.0.0`)
 
 ### 4.1. User Socket (`/var/run/da-wptoolkit-user.sock`)
 * `ping` *(Read-only)*: Kiểm tra kết nối phiên người dùng và cấp mới `csrf_token`.
@@ -119,11 +119,10 @@ Khi xảy ra lỗi xác thực, giới hạn tần suất hoặc lỗi nghiệp 
 * `get_overview` *(Read-only)*: Tổng hợp số liệu toàn máy chủ, số site có cảnh báo CVE / Core, hạn mức `inotify`, dung lượng **Local Verified Core Cache**, trạng thái `vulndb` và sự kiện bảo mật gần nhất.
 * `get_core_cache_status` / `seed_core_cache` / `delete_core_cache`: Kiểm tra dung lượng kho đệm `/var/cache/da-wptoolkit/wp-core`, tải trước bản phát hành WordPress sạch đã xác thực MD5 từ `api.wordpress.org/core/checksums/1.0/` hoặc xóa bản đệm không còn dùng.
 * `list_packages` / `save_default_policy` / `save_package_policy` / `delete_package_policy`: Tự động nhận diện danh sách gói Hosting DirectAdmin (`packages.list`), cấu hình chính sách mặc định toàn máy chủ và ghi đè hạn mức tính năng theo từng gói Hosting (`PackagePolicy`).
-* `get_updater_config` / `save_updater_config` / `check_github_update`: Truy vấn trạng thái phiên bản, khóa công khai Ed25519, lưu cấu hình kênh cập nhật (`stable`/`beta`, `backup_retention`, `github_token` chỉ ghi `0600` không bao giờ trả ngược về trình duyệt) và kiểm tra bản phát hành mới trên GitHub Releases.
+* `get_updater_config` / `save_updater_config` / `check_github_update` / `list_update_backups` / `apply_github_update` / `rollback_github_update`: Truy vấn trạng thái phiên bản, khóa công khai Ed25519, lưu cấu hình kênh cập nhật (`stable`/`beta`, `backup_retention`, `github_token` chỉ ghi `0600` không bao giờ trả ngược về trình duyệt), kiểm tra bản phát hành mới trên GitHub Releases, thực thi cập nhật tự động xác thực chữ ký số **Ed25519 + SHA-256** kèm **Auto-Rollback `< 10s`** (`TC-10`), liệt kê và khôi phục tức thời các bản sao lưu `backup_*.tar.gz`.
 * `get_vulndb_status` / `sync_vulndb`: Kiểm tra trạng thái hoặc đồng bộ tức thời cơ sở dữ liệu lỗ hổng từ **Wordfence Intelligence Community Feed v2** (đọc luồng JSON tiết kiệm RAM, hỗ trợ `gzip`).
 * `list_instances` *(Read-only)*: Liệt kê toàn bộ instance trên máy chủ (hỗ trợ lọc `username` và `vuln_only`).
 * Toàn quyền điều phối mọi hành động của User Socket (vòng đời WordPress, Plugins/Themes, Hardening, Core Integrity Shield, **Quick Tools**, **Zstd Snapshots** và **Clone/Staging Sync**) từ CLI `da-wptoolkit` (`root`) hoặc Admin Panel.
-* `backup_pre_unlock` / `backup_post_relock`: Phục vụ DirectAdmin Subdirectory Hooks (`user_backup_pre.sh` / `user_backup_post.sh`) để mở khóa tạm thời quyền sở hữu `Fortress Core Lock` trước khi DirectAdmin đóng gói sao lưu `.tar.zst` và khóa cứng lại ngay sau khi hoàn tất (`TC-06`, lưu trạng thái chống mất điện tại `backup_locks.json`).
-* `cleanup_owner`: Thu hồi `inotify` watches, dọn dẹp Quarantine Vault, gỡ cấu hình Nginx snippet và xóa các bản ghi Registry khi tài khoản Hosting bị hủy (`user_destroy_post.sh`).
+* `handle_da_hook` / `backup_pre_unlock` / `backup_post_relock` / `cleanup_owner`: Bộ điều phối thống nhất cho toàn bộ **9 DirectAdmin Lifecycle Subdirectory Hooks** (`domain_create`, `domain_destroy`, `subdomain_create`, `subdomain_destroy`, `user_modify`, `user_backup_pre`, `user_backup_post`, `user_restore`, `user_destroy`) — tự động nạp lại `/etc/passwd` + `user.conf`, quét phát hiện site mới khôi phục, hạ bậc chế độ bảo vệ nếu đổi sang gói Hosting hạn chế, mở/khóa tạm thời `Fortress Core Lock` khi sao lưu (`TC-06`) và thu hồi sạch tài nguyên khi xóa tên miền hoặc tài khoản.
 * `list_jobs` / `get_job` *(Read-only)*: Theo dõi hàng đợi tác vụ toàn hệ thống.
 * `get_security_events` *(Read-only)*: Truy xuất nhật ký cảnh báo bảo mật (`security_events.jsonl`).

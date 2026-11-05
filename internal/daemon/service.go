@@ -23,12 +23,13 @@ import (
 	"github.com/shostwp-byte/da-wptoolkits/internal/smartupdate"
 	"github.com/shostwp-byte/da-wptoolkits/internal/snapshot"
 	"github.com/shostwp-byte/da-wptoolkits/internal/store"
+	"github.com/shostwp-byte/da-wptoolkits/internal/updater"
 	"github.com/shostwp-byte/da-wptoolkits/internal/version"
 	"github.com/shostwp-byte/da-wptoolkits/internal/vulndb"
 	"github.com/shostwp-byte/da-wptoolkits/internal/webserver"
 )
 
-// Service coordinates authentication, domain discovery, WP-CLI lifecycle, extensions, Smart Safe Update, CVE scanning, WebServer hardening, Core Integrity Shield, Quick Tools, Snapshots, Clone/Sync, and IPC routing.
+// Service coordinates authentication, domain discovery, WP-CLI lifecycle, extensions, Smart Safe Update, CVE scanning, WebServer hardening, Core Integrity Shield, Quick Tools, Snapshots, Clone/Sync, Self-Updater, and IPC routing.
 type Service struct {
 	StartedAt     time.Time
 	Store         *store.Store
@@ -48,6 +49,7 @@ type Service struct {
 	QuickTools    *quicktools.Manager
 	Snapshots     *snapshot.Manager
 	CloneSync     *clonesync.Engine
+	Updater       *updater.Manager
 	GitHubAPIBase string
 }
 
@@ -164,6 +166,9 @@ func (s *Service) HandleAdminRequest(ctx context.Context, cred auth.PeerCred, re
 	case "scan_instances":
 		if s.Scanner == nil {
 			return ipc.Response{OK: false, Code: 503, Error: "discovery scanner is not configured"}
+		}
+		if s.Users != nil {
+			_ = s.Users.Reload()
 		}
 		reattach := paramBool(req.Params, "reattach", false)
 		targetUser := strings.TrimSpace(req.Username)
@@ -465,6 +470,9 @@ func (s *Service) HandleAdminRequest(ctx context.Context, cred auth.PeerCred, re
 		if dErr != nil {
 			return ipc.Response{OK: false, Code: 400, Error: dErr.Error()}
 		}
+		if s.Users != nil {
+			_ = s.Users.Reload()
+		}
 		return ipc.Response{OK: true, CSRFToken: issuedCSRF, Data: map[string]any{"removed_instances": removed}}
 
 	case "get_tools_status",
@@ -499,7 +507,11 @@ func (s *Service) HandleAdminRequest(ctx context.Context, cred auth.PeerCred, re
 		"delete_core_cache",
 		"get_updater_config",
 		"save_updater_config",
-		"check_github_update":
+		"check_github_update",
+		"list_update_backups",
+		"apply_github_update",
+		"rollback_github_update",
+		"handle_da_hook":
 		return s.handlePhase5AdminAction(ctx, action, req, issuedCSRF)
 
 	default:
