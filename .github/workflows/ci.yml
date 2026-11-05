@@ -55,7 +55,14 @@ jobs:
           go run honnef.co/go/tools/cmd/staticcheck@latest ./...
 
       - name: Run unit tests with race detector
-        run: go test -v -race ./...
+        run: |
+          set -o pipefail
+          go test -v -race ./... 2>&1 | tee /tmp/go-test.log || {
+            grep -E '(FAIL|RACE|panic:|_test\.go:[0-9]+:|\.go:[0-9]+:)' /tmp/go-test.log | tail -n 25 | while IFS= read -r line; do
+              echo "::error title=Go Test::${line}"
+            done
+            exit 1
+          }
 
       - name: Cross-compile static Linux binaries (amd64 & arm64)
         run: |

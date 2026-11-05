@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -37,6 +38,7 @@ import (
 )
 
 type testDBProv struct {
+	mu      sync.Mutex
 	dropped []string
 }
 
@@ -51,8 +53,18 @@ func (m *testDBProv) CreateDatabase(_ context.Context, acct dausers.Account, _ s
 }
 
 func (m *testDBProv) DropDatabase(_ context.Context, _ dausers.Account, dbName, _ string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.dropped = append(m.dropped, dbName)
 	return nil
+}
+
+func (m *testDBProv) droppedList() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	cp := make([]string, len(m.dropped))
+	copy(cp, m.dropped)
+	return cp
 }
 
 func TestEndToEndUserBootstrapAndMutatingDetachOverIPC(t *testing.T) {
@@ -382,8 +394,8 @@ func TestPhase1EndToEndDomainListInstallSSOScanAndUninstallOverIPC(t *testing.T)
 	if !unResp.OK {
 		t.Fatalf("uninstall_instance failed: %+v", unResp)
 	}
-	if len(st.ListInstancesByOwner("reno26")) != 0 || len(dbProv.dropped) != 1 {
-		t.Fatalf("expected 0 instances and 1 dropped DB after uninstall, got instances=%d dropped=%v", len(st.ListInstancesByOwner("reno26")), dbProv.dropped)
+	if len(st.ListInstancesByOwner("reno26")) != 0 || len(dbProv.droppedList()) != 1 {
+		t.Fatalf("expected 0 instances and 1 dropped DB after uninstall, got instances=%d dropped=%v", len(st.ListInstancesByOwner("reno26")), dbProv.droppedList())
 	}
 }
 

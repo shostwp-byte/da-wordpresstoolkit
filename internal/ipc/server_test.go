@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 
 type mockHandler struct {
 	rejectErr error
-	called    bool
+	called    atomic.Bool
 }
 
 func (m *mockHandler) AuthorizeSocketPeer(cred auth.PeerCred, _ bool) error {
@@ -29,12 +30,12 @@ func (m *mockHandler) AuthorizeSocketPeer(cred auth.PeerCred, _ bool) error {
 }
 
 func (m *mockHandler) HandleAdminRequest(_ context.Context, cred auth.PeerCred, req Request) Response {
-	m.called = true
+	m.called.Store(true)
 	return Response{OK: true, Data: map[string]any{"action": req.Action, "uid": cred.UID}}
 }
 
 func (m *mockHandler) HandleUserRequest(_ context.Context, cred auth.PeerCred, req Request) Response {
-	m.called = true
+	m.called.Store(true)
 	return Response{OK: true, Data: map[string]any{"action": req.Action, "uid": cred.UID}}
 }
 
@@ -73,7 +74,7 @@ func TestServeConnRejectsUnauthorizedPeerBeforeDecodingJSON(t *testing.T) {
 	if resp.OK || resp.Code != 403 || !strings.Contains(resp.Error, "403") {
 		t.Fatalf("expected 403 pre-decode rejection, got: %+v", resp)
 	}
-	if mh.called {
+	if mh.called.Load() {
 		t.Fatal("handler MUST NOT be invoked when AuthorizeSocketPeer fails")
 	}
 }
