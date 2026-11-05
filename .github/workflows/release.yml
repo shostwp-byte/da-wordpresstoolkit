@@ -33,13 +33,13 @@ jobs:
           set -o pipefail
           go vet ./...
           CGO_ENABLED=0 go test -count=1 ./... 2>&1 | tee /tmp/go-test-static.log || {
-            grep -E '(FAIL|panic:|_test\.go:[0-9]+:)' /tmp/go-test-static.log | tail -n 20 | while IFS= read -r line; do
+            grep -E '(FAIL|panic:|_test\.go:[0-9]+:|testing\.go:[0-9]+:)' /tmp/go-test-static.log | tail -n 20 | while IFS= read -r line; do
               echo "::error title=Static Test::${line}"
             done
             exit 1
           }
           go test -race -count=1 ./... 2>&1 | tee /tmp/go-test-race.log || {
-            grep -E '(FAIL|RACE|panic:|_test\.go:[0-9]+:|\.go:[0-9]+:)' /tmp/go-test-race.log | tail -n 20 | while IFS= read -r line; do
+            grep -E '(FAIL|RACE|panic:|_test\.go:[0-9]+:|testing\.go:[0-9]+:|\.go:[0-9]+:)' /tmp/go-test-race.log | tail -n 20 | while IFS= read -r line; do
               echo "::error title=Race Test::${line}"
             done
             exit 1

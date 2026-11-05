@@ -40,6 +40,7 @@ type coreWatcher struct {
 	PollInterval time.Duration // unused on Linux kernel inotify, kept for API parity
 
 	mu         sync.Mutex
+	wg         sync.WaitGroup
 	file       *os.File
 	fd         int
 	wdToBind   map[int]watchBinding
@@ -111,29 +112,47 @@ func (w *coreWatcher) Start(ctx context.Context, onEvent func(WatchEvent) WatchO
 		w.mu.Unlock()
 	}()
 
-	go w.readLoop(ctx, f)
+	w.wg.Add(1)
+	go func() {
+		defer w.wg.Done()
+		w.readLoop(ctx, f)
+	}()
 	return nil
+}
+
+func (w *coreWatcher) Wait() {
+	w.wg.Wait()
 }
 
 func (w *coreWatcher) readLoop(ctx context.Context, f *os.File) {
 	buf := make([]byte, 64*1024)
 	for {
+		if ctx.Err() != nil {
+			return
+		}
 		n, err := f.Read(buf)
-		if n > 0 {
-			w.parseEvents(buf[:n])
+		if n > 0 && ctx.Err() == nil {
+			w.parseEvents(ctx, buf[:n])
 		}
 		if err != nil {
 			if ctx.Err() != nil || errors.Is(err, os.ErrClosed) {
 				return
 			}
-			time.Sleep(25 * time.Millisecond)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(25 * time.Millisecond):
+			}
 		}
 	}
 }
 
-func (w *coreWatcher) parseEvents(chunk []byte) {
+func (w *coreWatcher) parseEvents(ctx context.Context, chunk []byte) {
 	offset := 0
 	for offset+syscall.SizeofInotifyEvent <= len(chunk) {
+		if ctx.Err() != nil {
+			return
+		}
 		wd := int(int32(binary.NativeEndian.Uint32(chunk[offset : offset+4])))
 		mask := binary.NativeEndian.Uint32(chunk[offset+4 : offset+8])
 		nameLen := int(binary.NativeEndian.Uint32(chunk[offset+12 : offset+16]))

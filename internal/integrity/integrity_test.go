@@ -120,7 +120,10 @@ func TestTC04_RealTimeAutoHealAndQuarantineUnder1Second(t *testing.T) {
 	_, acct, _, shield, inst := setupTestWPFixture(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(func() {
+		cancel()
+		shield.Wait()
+	})
 
 	if err := shield.Start(ctx); err != nil {
 		t.Fatalf("Shield.Start: %v", err)
@@ -210,7 +213,10 @@ func TestTC05_AntiThrashingEscalatesToFortressCoreLockAfter5Overwrites(t *testin
 	_, _, st, shield, inst := setupTestWPFixture(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(func() {
+		cancel()
+		shield.Wait()
+	})
 
 	if err := shield.Start(ctx); err != nil {
 		t.Fatal(err)
@@ -440,7 +446,10 @@ func TestNativeWPAdminCoreUpgradeDoesNotRevertOrEscalateToFortressLock(t *testin
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(func() {
+		cancel()
+		shield.Wait()
+	})
 	if err := shield.Start(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -574,7 +583,10 @@ func TestStartupMigrationUnlocksPriorThrashLockedInstances(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(func() {
+		cancel()
+		restartedShield.Wait()
+	})
 	if err := restartedShield.Start(ctx); err != nil {
 		t.Fatal(err)
 	}

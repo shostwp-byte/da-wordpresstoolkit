@@ -30,6 +30,7 @@ type coreWatcher struct {
 	PollInterval time.Duration
 
 	mu        sync.Mutex
+	wg        sync.WaitGroup
 	watched   map[string]*polledInstance
 	maxBudget int
 }
@@ -50,7 +51,9 @@ func newCoreWatcher(maxWatches int, pollInterval time.Duration) *coreWatcher {
 }
 
 func (w *coreWatcher) Start(ctx context.Context, onEvent func(WatchEvent) WatchOutcome, _ func()) error {
+	w.wg.Add(1)
 	go func() {
+		defer w.wg.Done()
 		ticker := time.NewTicker(w.PollInterval)
 		defer ticker.Stop()
 		for {
@@ -58,11 +61,18 @@ func (w *coreWatcher) Start(ctx context.Context, onEvent func(WatchEvent) WatchO
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				if ctx.Err() != nil {
+					return
+				}
 				w.pollOnce(onEvent)
 			}
 		}
 	}()
 	return nil
+}
+
+func (w *coreWatcher) Wait() {
+	w.wg.Wait()
 }
 
 func (w *coreWatcher) SyncInstance(instanceID, verifiedDocRoot string) error {

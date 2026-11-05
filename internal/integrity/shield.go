@@ -92,6 +92,8 @@ type Shield struct {
 	watcher *coreWatcher
 
 	mu            sync.Mutex
+	wg            sync.WaitGroup
+	runCtx        context.Context
 	suppressed    map[string]int
 	thrashHistory map[string][]time.Time
 }
@@ -151,6 +153,10 @@ func NewShield(
 // Start activates real-time kernel inotify monitoring, syncs watches for all managed instances,
 // and launches the periodic 30-minute integrity sweep.
 func (s *Shield) Start(ctx context.Context) error {
+	s.mu.Lock()
+	s.runCtx = ctx
+	s.mu.Unlock()
+
 	s.migratePriorThrashLocksOnce()
 	s.ReconcileAllOwnership()
 
@@ -163,7 +169,9 @@ func (s *Shield) Start(ctx context.Context) error {
 
 	s.SyncAllWatches()
 
+	s.wg.Add(1)
 	go func() {
+		defer s.wg.Done()
 		ticker := time.NewTicker(s.AuditInterval)
 		defer ticker.Stop()
 		for {
@@ -176,6 +184,14 @@ func (s *Shield) Start(ctx context.Context) error {
 		}
 	}()
 	return nil
+}
+
+// Wait blocks until all background watcher and sweep goroutines started by Start(ctx) have exited.
+func (s *Shield) Wait() {
+	if s.watcher != nil {
+		s.watcher.Wait()
+	}
+	s.wg.Wait()
 }
 
 // migratePriorThrashLocksOnce runs once on daemon upgrade to unlock instances that were previously
@@ -380,6 +396,12 @@ func (s *Shield) WithUpdatingSuppression(acct dausers.Account, inst store.Instan
 }
 
 func (s *Shield) handleWatchEvent(ev WatchEvent) WatchOutcome {
+	s.mu.Lock()
+	rCtx := s.runCtx
+	s.mu.Unlock()
+	if rCtx != nil && rCtx.Err() != nil {
+		return WatchOutcome{Handled: true}
+	}
 	if s.isSuppressed(ev.InstanceID) || s.Store == nil {
 		return WatchOutcome{Handled: true}
 	}
