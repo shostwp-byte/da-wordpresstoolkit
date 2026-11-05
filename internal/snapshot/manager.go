@@ -863,7 +863,7 @@ func (m *Manager) unpackArchiveToStage(
 		}
 
 		// Block symlinks, hardlinks, FIFOs, and device nodes inside snapshot archives
-		if hdr.Typeflag != tar.TypeDir && hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA {
+		if hdr.Typeflag != tar.TypeDir && hdr.Typeflag != tar.TypeReg {
 			if hdr.Typeflag == tar.TypeXGlobalHeader || hdr.Typeflag == tar.TypeXHeader {
 				continue
 			}

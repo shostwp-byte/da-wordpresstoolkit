@@ -392,13 +392,11 @@ func (c *CoreCache) downloadAndVerifyTarball(ctx context.Context, version, local
 			_ = os.RemoveAll(stagingDir)
 			return nil, fmt.Errorf("read core tar entry: %w", err)
 		}
-		if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA {
+		if hdr.Typeflag != tar.TypeReg {
 			continue
 		}
 		rawName := strings.TrimPrefix(strings.ReplaceAll(hdr.Name, "\\", "/"), "/")
-		if strings.HasPrefix(rawName, "wordpress/") {
-			rawName = strings.TrimPrefix(rawName, "wordpress/")
-		}
+		rawName = strings.TrimPrefix(rawName, "wordpress/")
 		normRel, nErr := normalizeCoreRelPath(rawName)
 		if nErr != nil {
 			continue

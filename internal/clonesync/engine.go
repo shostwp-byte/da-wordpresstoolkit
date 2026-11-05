@@ -422,7 +422,7 @@ func (e *Engine) Sync(
 			return SyncResult{}, errors.New("WordPress Toolkit is disabled for your hosting package")
 		}
 		if !pol.AllowStagingSync {
-			return SyncResult{}, errors.New("Staging Sync is disabled for your hosting package")
+			return SyncResult{}, errors.New("staging sync is disabled for your hosting package")
 		}
 	}
 

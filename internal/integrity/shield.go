@@ -706,7 +706,7 @@ func (s *Shield) SetMode(
 
 	if enforcePackagePolicy && mode == config.ShieldModeFortressLock && s.Policies != nil {
 		if pol, err := s.Policies.ResolvePackagePolicy(acct.Package); err == nil && !pol.AllowCoreFortressLock {
-			return store.InstanceRecord{}, errors.New("Fortress Core Lock is disabled for your hosting package")
+			return store.InstanceRecord{}, errors.New("fortress core lock is disabled for your hosting package")
 		}
 	}
 

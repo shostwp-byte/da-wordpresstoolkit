@@ -969,7 +969,7 @@ func extractTarGzSafe(archivePath, destDir string) error {
 			if err := os.MkdirAll(targetPath, 0o755); err != nil {
 				return err
 			}
-		case tar.TypeReg, tar.TypeRegA:
+		case tar.TypeReg:
 			if hdr.Size < 0 || totalBytes+hdr.Size > maxExtractedBytes {
 				return errors.New("extracted archive size exceeds safety limit")
 			}
