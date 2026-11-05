@@ -121,6 +121,9 @@ mv -f "${BIN_DST}.new" "$BIN_DST"
 if [[ -f "${BUNDLE_ROOT}/scripts/update.sh" ]]; then
   install -m 0700 "${BUNDLE_ROOT}/scripts/update.sh" "${SHARE_DST}/scripts/update.sh"
 fi
+if [[ -f "${BUNDLE_ROOT}/scripts/uninstall.sh" ]]; then
+  install -m 0700 "${BUNDLE_ROOT}/scripts/uninstall.sh" "${SHARE_DST}/scripts/uninstall.sh"
+fi
 
 if [[ ! -f "${CONF_DIR}/updater.conf" ]]; then
   cat >"${CONF_DIR}/updater.conf" <<EOF

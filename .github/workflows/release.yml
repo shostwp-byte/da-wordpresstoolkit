@@ -26,12 +26,13 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 'stable'
-          cache: true
+          cache: false
 
       - name: Run full verification & race test suite
         run: |
           go vet ./...
-          CGO_ENABLED=0 go test -race -count=1 ./...
+          CGO_ENABLED=0 go test -count=1 ./...
+          go test -race -count=1 ./...
           shopt -s globstar nullglob
           shellcheck scripts/**/*.sh plugin/scripts/*.sh plugin/admin/api.raw plugin/user/api.raw plugin/admin/index.html plugin/user/index.html
           php -l plugin/admin/api.php
@@ -52,15 +53,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          PRE_FLAG=""
-          if [[ "$TAG" == *"-"* ]]; then
-            PRE_FLAG="--prerelease"
-          fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/release/* --clobber
-          else
+          elif [[ "$TAG" == *"-"* ]]; then
             gh release create "$TAG" dist/release/* \
               --title "DA-WordPressToolkits ${TAG}" \
               --generate-notes \
-              $PRE_FLAG
+              --prerelease
+          else
+            gh release create "$TAG" dist/release/* \
+              --title "DA-WordPressToolkits ${TAG}" \
+              --generate-notes
           fi

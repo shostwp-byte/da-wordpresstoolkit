@@ -147,14 +147,14 @@ func TestTC10Ed25519SignatureVerificationTamperBlockAndAutoRollback(t *testing.T
 	_ = makeSignedRelease("broken", "CRASH_ON_START_V1.0.0_BROKEN", "1.0.0")
 	_ = makeSignedRelease("healthy", "HEALTHY_DAEMON_V1.0.0", "1.0.0")
 
-	var srvURL string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		base := "http://" + r.Host
 		if strings.HasPrefix(r.URL.Path, "/repos/shostwp-byte/da-wordpresstoolkit/releases") {
 			mkAssets := func(folder string) []ghAssetDTO {
 				return []ghAssetDTO{
-					{Name: "da-wptoolkit-linux-amd64.tar.gz", BrowserDownloadURL: fmt.Sprintf("%s/dl/%s/da-wptoolkit-linux-amd64.tar.gz", srvURL, folder)},
-					{Name: "checksums.txt", BrowserDownloadURL: fmt.Sprintf("%s/dl/%s/checksums.txt", srvURL, folder)},
-					{Name: "checksums.txt.sig", BrowserDownloadURL: fmt.Sprintf("%s/dl/%s/checksums.txt.sig", srvURL, folder)},
+					{Name: "da-wptoolkit-linux-amd64.tar.gz", BrowserDownloadURL: fmt.Sprintf("%s/dl/%s/da-wptoolkit-linux-amd64.tar.gz", base, folder)},
+					{Name: "checksums.txt", BrowserDownloadURL: fmt.Sprintf("%s/dl/%s/checksums.txt", base, folder)},
+					{Name: "checksums.txt.sig", BrowserDownloadURL: fmt.Sprintf("%s/dl/%s/checksums.txt.sig", base, folder)},
 				}
 			}
 			rels := []ghReleaseDTO{
@@ -175,7 +175,6 @@ func TestTC10Ed25519SignatureVerificationTamperBlockAndAutoRollback(t *testing.T
 		http.NotFound(w, r)
 	}))
 	defer srv.Close()
-	srvURL = srv.URL
 
 	mgr := NewManager(stateDir, st)
 	mgr.BinPath = binPath

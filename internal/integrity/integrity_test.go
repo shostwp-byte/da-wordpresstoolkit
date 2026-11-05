@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -355,7 +356,7 @@ func TestVerifiedCoreCacheDownloadsAndRejectsTamperedTarball(t *testing.T) {
 		checksums[rel] = hex.EncodeToString(sum[:])
 	}
 
-	corruptArchive := false
+	var corruptArchive atomic.Bool
 	apiSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/checksums") {
 			_ = json.NewEncoder(w).Encode(map[string]any{"checksums": checksums})
@@ -367,7 +368,7 @@ func TestVerifiedCoreCacheDownloadsAndRejectsTamperedTarball(t *testing.T) {
 			tw := tar.NewWriter(gz)
 			for rel, content := range files {
 				body := []byte(content)
-				if corruptArchive && rel == "index.php" {
+				if corruptArchive.Load() && rel == "index.php" {
 					body = []byte("<?php // MITM TAMPERED!\n")
 				}
 				_ = tw.WriteHeader(&tar.Header{
@@ -392,13 +393,13 @@ func TestVerifiedCoreCacheDownloadsAndRejectsTamperedTarball(t *testing.T) {
 	cache.DownloadBaseURL = apiSrv.URL
 
 	// 1. Tampered tarball MUST be rejected!
-	corruptArchive = true
+	corruptArchive.Store(true)
 	if _, err := cache.EnsureVerifiedCore(context.Background(), "6.7.2", "vi"); err == nil {
 		t.Fatal("expected MITM-corrupted WordPress tarball to fail official MD5 verification")
 	}
 
 	// 2. Authentic tarball MUST verify and cache cleanly (excluding wp-content/*)!
-	corruptArchive = false
+	corruptArchive.Store(false)
 	manifest, err := cache.EnsureVerifiedCore(context.Background(), "6.7.2", "vi")
 	if err != nil {
 		t.Fatalf("EnsureVerifiedCore failed on authentic archive: %v", err)

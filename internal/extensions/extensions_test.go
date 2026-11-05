@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/shostwp-byte/da-wptoolkits/internal/dadomains"
@@ -119,14 +120,14 @@ func TestListManageAggregateAndSearchWPOrgWithCVEEnrichment(t *testing.T) {
 		instances = append(instances, rec)
 	}
 
-	var sawSkipFlags bool
+	var sawSkipFlags atomic.Bool
 	wpRunner := wpcli.NewRunner("/usr/local/bin/wp", "")
 	wpRunner.NiceBin = ""
 	wpRunner.IoniceBin = ""
 	wpRunner.ExecCommand = func(_ context.Context, spec wpcli.ExecSpec) (string, string, error) {
 		joined := strings.Join(spec.Args, " ")
 		if strings.Contains(joined, "--skip-plugins") && strings.Contains(joined, "--skip-themes") {
-			sawSkipFlags = true
+			sawSkipFlags.Store(true)
 		}
 		if strings.Contains(joined, "plugin list") {
 			return `[{"name":"elementor","status":"active","update":"available","version":"3.18.1","update_version":"3.18.3","auto_update":"off"}]`, "", nil
@@ -155,7 +156,7 @@ func TestListManageAggregateAndSearchWPOrgWithCVEEnrichment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ManagePlugin deactivate failed: %v", err)
 	}
-	if !sawSkipFlags {
+	if !sawSkipFlags.Load() {
 		t.Fatal("expected WSOD-safe --skip-plugins --skip-themes flags on WP-CLI call")
 	}
 	if len(items) != 1 || items[0].Title != "Elementor Website Builder" || len(items[0].Vulns) != 1 {

@@ -280,14 +280,14 @@ func TestPhase6DirectAdminHooksAndEd25519UpdaterOverAdminIPC(t *testing.T) {
 	makeSignedReleaseBundleForDaemonTest(t, filepath.Join(relBase, "ok"), privHex, "DAEMON_OK_V1.0.0", "1.0.0")
 	makeSignedReleaseBundleForDaemonTest(t, filepath.Join(relBase, "bad"), privHex, "DAEMON_CRASH_V1.0.1", "1.0.1")
 
-	var ghURL string
 	ghSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		base := "http://" + r.Host
 		if strings.HasPrefix(r.URL.Path, "/repos/") {
 			assetsFor := func(sub string) []map[string]any {
 				return []map[string]any{
-					{"name": "da-wptoolkit-linux-amd64.tar.gz", "browser_download_url": ghURL + "/dl/" + sub + "/da-wptoolkit-linux-amd64.tar.gz"},
-					{"name": "checksums.txt", "browser_download_url": ghURL + "/dl/" + sub + "/checksums.txt"},
-					{"name": "checksums.txt.sig", "browser_download_url": ghURL + "/dl/" + sub + "/checksums.txt.sig"},
+					{"name": "da-wptoolkit-linux-amd64.tar.gz", "browser_download_url": base + "/dl/" + sub + "/da-wptoolkit-linux-amd64.tar.gz"},
+					{"name": "checksums.txt", "browser_download_url": base + "/dl/" + sub + "/checksums.txt"},
+					{"name": "checksums.txt.sig", "browser_download_url": base + "/dl/" + sub + "/checksums.txt.sig"},
 				}
 			}
 			_ = json.NewEncoder(w).Encode([]map[string]any{
@@ -303,7 +303,6 @@ func TestPhase6DirectAdminHooksAndEd25519UpdaterOverAdminIPC(t *testing.T) {
 		http.NotFound(w, r)
 	}))
 	defer ghSrv.Close()
-	ghURL = ghSrv.URL
 
 	binPath := filepath.Join(tmp, "sbin", "da-wptoolkit")
 	pluginDir := filepath.Join(tmp, "plugin_live")

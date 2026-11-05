@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1236,9 +1237,9 @@ func TestPhase5AdminPoliciesCoreCachePruneAndGitHubUpdaterOverIPC(t *testing.T) 
 		t.Fatal(err)
 	}
 
-	var gotAuthHeader string
+	var gotAuthHeader atomic.Value
 	ghServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotAuthHeader = r.Header.Get("Authorization")
+		gotAuthHeader.Store(r.Header.Get("Authorization"))
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`[{"tag_name":"v1.2.0","name":"DA-WordPressToolkits v1.2.0","draft":false,"prerelease":false,"published_at":"2026-11-05T00:00:00Z","html_url":"https://github.com/shostwp-byte/da-wordpresstoolkit/releases/tag/v1.2.0","body":"### Highlights\n- Ed25519 Signed Release"}]`))
 	}))
@@ -1327,7 +1328,7 @@ func TestPhase5AdminPoliciesCoreCachePruneAndGitHubUpdaterOverIPC(t *testing.T) 
 	if !strings.Contains(string(rawChk), `"update_available":true`) || !strings.Contains(string(rawChk), `"latest_version":"v1.2.0"`) {
 		t.Fatalf("unexpected check_github_update output: %s", string(rawChk))
 	}
-	if gotAuthHeader != "Bearer ghp_TestMaskedSecret999" {
-		t.Fatalf("expected Bearer token header sent to GitHub API, got %q", gotAuthHeader)
+	if got, _ := gotAuthHeader.Load().(string); got != "Bearer ghp_TestMaskedSecret999" {
+		t.Fatalf("expected Bearer token header sent to GitHub API, got %q", got)
 	}
 }
