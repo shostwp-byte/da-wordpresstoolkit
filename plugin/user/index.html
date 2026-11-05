@@ -1,16 +1,46 @@
 #!/bin/sh
 cat <<'DAWPTK_USER_HTML'
 <div id="dawptk-root" data-theme="light">
-  <script>
-    if (window.self !== window.top) {
-      document.documentElement.classList.add('dawptk-iframe');
-    }
-  </script>
   <style>
-    html.dawptk-iframe, html.dawptk-iframe body {
-      margin: 0;
-      padding: 0;
+    html, body,
+    html.dawptk-iframe, html.dawptk-iframe body,
+    [data-dawptk-inner-fw="1"] {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
       background: transparent;
+    }
+    [data-dawptk-fw="frame"],
+    [data-dawptk-fw="card"] {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
+    [data-dawptk-fw="box"] {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+    [data-dawptk-fw="pane"] {
+      max-width: 100% !important;
+      min-width: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
     }
     #dawptk-root {
       --bg: #ffffff;
@@ -47,14 +77,15 @@ cat <<'DAWPTK_USER_HTML'
       line-height: 1.5;
       color: var(--text);
       background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 22px 26px 28px;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      padding: 20px 28px 32px;
       width: 100%;
-      max-width: 100%;
+      max-width: none;
+      min-height: calc(100vh - 64px);
       box-sizing: border-box;
       position: relative;
-      box-shadow: var(--shadow-sm);
     }
     html.dark #dawptk-root:not([data-user-theme="light"]),
     body.dark #dawptk-root:not([data-user-theme="light"]),
@@ -234,6 +265,7 @@ cat <<'DAWPTK_USER_HTML'
       align-items: center;
       gap: 4px;
       overflow-x: auto;
+      overflow-y: hidden;
     }
     .wptk-gtab {
       display: inline-flex;
@@ -248,7 +280,6 @@ cat <<'DAWPTK_USER_HTML'
       font-weight: 600;
       cursor: pointer;
       transition: color 0.14s ease, border-color 0.14s ease;
-      margin-bottom: -1px;
     }
     .wptk-gtab:hover {
       color: var(--text);
@@ -575,6 +606,7 @@ cat <<'DAWPTK_USER_HTML'
       border-bottom: 1px solid var(--border);
       margin-bottom: 18px;
       overflow-x: auto;
+      overflow-y: hidden;
     }
     .wptk-subtab {
       padding: 10px 13px;
@@ -586,7 +618,6 @@ cat <<'DAWPTK_USER_HTML'
       font-weight: 600;
       cursor: pointer;
       white-space: nowrap;
-      margin-bottom: -1px;
     }
     .wptk-subtab:hover {
       color: var(--text);
@@ -1068,12 +1099,127 @@ cat <<'DAWPTK_USER_HTML'
       return (I18N[S.lang] && I18N[S.lang][key]) || I18N.vi[key] || key;
     }
 
+    function applyFullWidthHost(rootNode) {
+      if (!rootNode) return;
+      function visibleChildren(el, win) {
+        if (!el || !el.children) return 0;
+        var n = 0;
+        for (var i = 0; i < el.children.length; i++) {
+          var c = el.children[i];
+          var tag = c.tagName;
+          if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK' || tag === 'NOSCRIPT') continue;
+          var cs = win.getComputedStyle(c);
+          if (cs.display === 'none' || cs.position === 'fixed' || cs.position === 'absolute') continue;
+          n++;
+        }
+        return n;
+      }
+      function isHorizontalSplit(el, win) {
+        if (!el) return false;
+        var cs = win.getComputedStyle(el);
+        var disp = cs.display || '';
+        if ((disp === 'flex' || disp === 'inline-flex') && cs.flexDirection.indexOf('column') === -1) {
+          return visibleChildren(el, win) > 1;
+        }
+        if (disp === 'grid' || disp === 'inline-grid') {
+          var cols = (cs.gridTemplateColumns || '').trim();
+          if (cols && cols !== 'none' && cols.split(/\s+/).length > 1 && visibleChildren(el, win) > 1) return true;
+        }
+        return false;
+      }
+      function hasGlobalTopBar(el, win, activeBranch) {
+        if (!el || !el.children) return false;
+        for (var i = 0; i < el.children.length; i++) {
+          var c = el.children[i];
+          if (c === activeBranch) continue;
+          var tag = c.tagName;
+          if (tag === 'HEADER' || tag === 'ASIDE' || (tag === 'NAV' && c.getBoundingClientRect().height >= 40)) {
+            var r = c.getBoundingClientRect();
+            if (r.width >= win.innerWidth * 0.8 && r.top <= 8 && r.height >= 36 && r.height <= 120) return true;
+          }
+        }
+        return false;
+      }
+      function unboxChain(startEl, doc, win, attrName) {
+        var cur = startEl;
+        while (cur && cur !== doc.body && cur !== doc.documentElement) {
+          if (cur.id === 'app' || cur.id === 'root') break;
+          if (cur !== startEl && isHorizontalSplit(cur, win)) break;
+          var parent = cur.parentElement;
+          if (parent && parent !== doc.body && isHorizontalSplit(parent, win)) {
+            cur.setAttribute(attrName, 'pane');
+            break;
+          }
+          if (cur === startEl && startEl.tagName === 'IFRAME') {
+            cur.setAttribute(attrName, 'frame');
+          } else if (visibleChildren(cur, win) <= 1) {
+            cur.setAttribute(attrName, 'card');
+          } else {
+            cur.setAttribute(attrName, 'box');
+          }
+          if (parent && hasGlobalTopBar(parent, win, cur)) break;
+          cur = parent;
+        }
+      }
+      if (window.self !== window.top) {
+        document.documentElement.classList.add('dawptk-iframe');
+        var p = rootNode.parentElement;
+        while (p && p !== document.documentElement) {
+          p.setAttribute('data-dawptk-inner-fw', '1');
+          p = p.parentElement;
+        }
+        try {
+          var frameEl = window.frameElement;
+          var pWin = window.parent;
+          var pDoc = pWin && pWin.document;
+          if (frameEl && pDoc && pDoc.head) {
+            var styleId = 'dawptk-evo-fullwidth-style';
+            var st = pDoc.getElementById(styleId);
+            if (!st) {
+              st = pDoc.createElement('style');
+              st.id = styleId;
+              st.textContent =
+                '[data-dawptk-fw="frame"]{width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;display:block!important;}' +
+                '[data-dawptk-fw="card"]{width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;}' +
+                '[data-dawptk-fw="box"]{width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;}' +
+                '[data-dawptk-fw="pane"]{max-width:100%!important;min-width:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;}';
+              pDoc.head.appendChild(st);
+            }
+            unboxChain(frameEl, pDoc, pWin, 'data-dawptk-fw');
+            if (!window.__dawptkFwBound) {
+              window.__dawptkFwBound = true;
+              var cleanupParent = function () {
+                try {
+                  var oldSt = pDoc.getElementById(styleId);
+                  if (oldSt && oldSt.parentNode) oldSt.parentNode.removeChild(oldSt);
+                  var nodes = pDoc.querySelectorAll('[data-dawptk-fw]');
+                  for (var k = 0; k < nodes.length; k++) nodes[k].removeAttribute('data-dawptk-fw');
+                } catch (e) {}
+              };
+              window.addEventListener('pagehide', cleanupParent);
+              window.addEventListener('beforeunload', cleanupParent);
+            }
+          }
+        } catch (e) {}
+      } else if (rootNode.parentElement) {
+        unboxChain(rootNode.parentElement, document, window, 'data-dawptk-fw');
+      }
+    }
+    applyFullWidthHost(rootEl);
+    window.addEventListener('load', function () { applyFullWidthHost(rootEl); });
+    setTimeout(function () { applyFullWidthHost(rootEl); }, 150);
+
     function applyTheme() {
       if (S.theme === 'dark' || S.theme === 'light') {
         rootEl.setAttribute('data-theme', S.theme);
         rootEl.setAttribute('data-user-theme', S.theme);
       } else {
         var evoDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
+        if (!evoDark && window.self !== window.top) {
+          try {
+            evoDark = window.parent.document.documentElement.classList.contains('dark') || window.parent.document.body.classList.contains('dark');
+          } catch (e) {}
+        }
         rootEl.setAttribute('data-theme', evoDark ? 'dark' : 'light');
       }
     }

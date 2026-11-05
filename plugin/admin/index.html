@@ -1,16 +1,46 @@
 #!/bin/sh
 cat <<'DAWPTK_ADMIN_HTML'
 <div id="dawptk-admin-root" data-theme="light">
-  <script>
-    if (window.self !== window.top) {
-      document.documentElement.classList.add('dawptk-iframe');
-    }
-  </script>
   <style>
-    html.dawptk-iframe, html.dawptk-iframe body {
-      margin: 0;
-      padding: 0;
+    html, body,
+    html.dawptk-iframe, html.dawptk-iframe body,
+    [data-dawptk-inner-fw="1"] {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
       background: transparent;
+    }
+    [data-dawptk-fw="frame"],
+    [data-dawptk-fw="card"] {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
+    [data-dawptk-fw="box"] {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+    [data-dawptk-fw="pane"] {
+      max-width: 100% !important;
+      min-width: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
     }
     #dawptk-admin-root {
       --bg: #ffffff;
@@ -39,10 +69,13 @@ cat <<'DAWPTK_ADMIN_HTML'
       line-height: 1.5;
       color: var(--text);
       background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 22px 26px 28px;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      padding: 20px 28px 32px;
       width: 100%;
+      max-width: none;
+      min-height: calc(100vh - 64px);
       box-sizing: border-box;
     }
     html.dark #dawptk-admin-root:not([data-user-theme="light"]),
@@ -75,8 +108,8 @@ cat <<'DAWPTK_ADMIN_HTML'
     .adm-hdr { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
     .adm-brand { display: flex; align-items: center; gap: 13px; }
     .adm-logo { width: 42px; height: 42px; border-radius: 12px; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; }
-    .adm-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 18px; overflow-x: auto; }
-    .adm-tab { padding: 10px 15px; border: none; border-bottom: 2.5px solid transparent; background: transparent; color: var(--muted); font-weight: 600; cursor: pointer; white-space: nowrap; margin-bottom: -1px; }
+    .adm-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 18px; overflow-x: auto; overflow-y: hidden; }
+    .adm-tab { padding: 10px 15px; border: none; border-bottom: 2.5px solid transparent; background: transparent; color: var(--muted); font-weight: 600; cursor: pointer; white-space: nowrap; }
     .adm-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
 
     .adm-btn { display: inline-flex; align-items: center; gap: 6px; height: 33px; padding: 0 13px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text-2); font-size: 12.5px; font-weight: 500; cursor: pointer; }
@@ -119,6 +152,9 @@ cat <<'DAWPTK_ADMIN_HTML'
     .adm-toast { padding: 11px 15px; border-radius: 10px; background: #0f172a; color: #f8fafc; font-size: 12.5px; border-left: 4px solid var(--primary-btn); }
     .adm-toast.ok { border-left-color: #22c55e; }
     .adm-toast.err { border-left-color: #ef4444; }
+    @media (max-width: 960px) {
+      #dawptk-admin-root { padding: 16px; }
+    }
   </style>
 
   <div id="dawptk-admin-app">Đang kết nối tới dịch vụ quản trị da-wptoolkitd...</div>
@@ -148,12 +184,127 @@ cat <<'DAWPTK_ADMIN_HTML'
       githubCheck: null
     };
 
+    function applyFullWidthHost(rootNode) {
+      if (!rootNode) return;
+      function visibleChildren(el, win) {
+        if (!el || !el.children) return 0;
+        var n = 0;
+        for (var i = 0; i < el.children.length; i++) {
+          var c = el.children[i];
+          var tag = c.tagName;
+          if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK' || tag === 'NOSCRIPT') continue;
+          var cs = win.getComputedStyle(c);
+          if (cs.display === 'none' || cs.position === 'fixed' || cs.position === 'absolute') continue;
+          n++;
+        }
+        return n;
+      }
+      function isHorizontalSplit(el, win) {
+        if (!el) return false;
+        var cs = win.getComputedStyle(el);
+        var disp = cs.display || '';
+        if ((disp === 'flex' || disp === 'inline-flex') && cs.flexDirection.indexOf('column') === -1) {
+          return visibleChildren(el, win) > 1;
+        }
+        if (disp === 'grid' || disp === 'inline-grid') {
+          var cols = (cs.gridTemplateColumns || '').trim();
+          if (cols && cols !== 'none' && cols.split(/\s+/).length > 1 && visibleChildren(el, win) > 1) return true;
+        }
+        return false;
+      }
+      function hasGlobalTopBar(el, win, activeBranch) {
+        if (!el || !el.children) return false;
+        for (var i = 0; i < el.children.length; i++) {
+          var c = el.children[i];
+          if (c === activeBranch) continue;
+          var tag = c.tagName;
+          if (tag === 'HEADER' || tag === 'ASIDE' || (tag === 'NAV' && c.getBoundingClientRect().height >= 40)) {
+            var r = c.getBoundingClientRect();
+            if (r.width >= win.innerWidth * 0.8 && r.top <= 8 && r.height >= 36 && r.height <= 120) return true;
+          }
+        }
+        return false;
+      }
+      function unboxChain(startEl, doc, win, attrName) {
+        var cur = startEl;
+        while (cur && cur !== doc.body && cur !== doc.documentElement) {
+          if (cur.id === 'app' || cur.id === 'root') break;
+          if (cur !== startEl && isHorizontalSplit(cur, win)) break;
+          var parent = cur.parentElement;
+          if (parent && parent !== doc.body && isHorizontalSplit(parent, win)) {
+            cur.setAttribute(attrName, 'pane');
+            break;
+          }
+          if (cur === startEl && startEl.tagName === 'IFRAME') {
+            cur.setAttribute(attrName, 'frame');
+          } else if (visibleChildren(cur, win) <= 1) {
+            cur.setAttribute(attrName, 'card');
+          } else {
+            cur.setAttribute(attrName, 'box');
+          }
+          if (parent && hasGlobalTopBar(parent, win, cur)) break;
+          cur = parent;
+        }
+      }
+      if (window.self !== window.top) {
+        document.documentElement.classList.add('dawptk-iframe');
+        var p = rootNode.parentElement;
+        while (p && p !== document.documentElement) {
+          p.setAttribute('data-dawptk-inner-fw', '1');
+          p = p.parentElement;
+        }
+        try {
+          var frameEl = window.frameElement;
+          var pWin = window.parent;
+          var pDoc = pWin && pWin.document;
+          if (frameEl && pDoc && pDoc.head) {
+            var styleId = 'dawptk-evo-fullwidth-style';
+            var st = pDoc.getElementById(styleId);
+            if (!st) {
+              st = pDoc.createElement('style');
+              st.id = styleId;
+              st.textContent =
+                '[data-dawptk-fw="frame"]{width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;display:block!important;}' +
+                '[data-dawptk-fw="card"]{width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;}' +
+                '[data-dawptk-fw="box"]{width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;}' +
+                '[data-dawptk-fw="pane"]{max-width:100%!important;min-width:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;}';
+              pDoc.head.appendChild(st);
+            }
+            unboxChain(frameEl, pDoc, pWin, 'data-dawptk-fw');
+            if (!window.__dawptkFwBound) {
+              window.__dawptkFwBound = true;
+              var cleanupParent = function () {
+                try {
+                  var oldSt = pDoc.getElementById(styleId);
+                  if (oldSt && oldSt.parentNode) oldSt.parentNode.removeChild(oldSt);
+                  var nodes = pDoc.querySelectorAll('[data-dawptk-fw]');
+                  for (var k = 0; k < nodes.length; k++) nodes[k].removeAttribute('data-dawptk-fw');
+                } catch (e) {}
+              };
+              window.addEventListener('pagehide', cleanupParent);
+              window.addEventListener('beforeunload', cleanupParent);
+            }
+          }
+        } catch (e) {}
+      } else if (rootNode.parentElement) {
+        unboxChain(rootNode.parentElement, document, window, 'data-dawptk-fw');
+      }
+    }
+    applyFullWidthHost(rootEl);
+    window.addEventListener('load', function () { applyFullWidthHost(rootEl); });
+    setTimeout(function () { applyFullWidthHost(rootEl); }, 150);
+
     function syncTheme() {
       if (A.theme === 'dark' || A.theme === 'light') {
         rootEl.setAttribute('data-theme', A.theme);
         rootEl.setAttribute('data-user-theme', A.theme);
       } else {
         var dark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
+        if (!dark && window.self !== window.top) {
+          try {
+            dark = window.parent.document.documentElement.classList.contains('dark') || window.parent.document.body.classList.contains('dark');
+          } catch (e) {}
+        }
         rootEl.setAttribute('data-theme', dark ? 'dark' : 'light');
       }
     }
