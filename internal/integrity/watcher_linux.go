@@ -22,8 +22,11 @@ const (
 		syscall.IN_MOVED_TO |
 		syscall.IN_MOVED_FROM |
 		syscall.IN_CREATE |
-		syscall.IN_DELETE |
-		syscall.IN_ATTRIB
+		syscall.IN_DELETE
+	inotifyFileActionMask = syscall.IN_CLOSE_WRITE |
+		syscall.IN_MOVED_TO |
+		syscall.IN_MOVED_FROM |
+		syscall.IN_DELETE
 )
 
 type watchBinding struct {
@@ -196,6 +199,26 @@ func (w *coreWatcher) parseEvents(chunk []byte) {
 			w.mu.Lock()
 			_ = w.addTreeLocked(bind.instanceID, absPath, true)
 			w.mu.Unlock()
+			if cb != nil {
+				_ = filepath.WalkDir(absPath, func(cur string, d os.DirEntry, walkErr error) error {
+					if walkErr != nil || d.IsDir() || d.Type()&os.ModeSymlink != 0 {
+						return nil
+					}
+					_ = cb(WatchEvent{
+						InstanceID: bind.instanceID,
+						AbsPath:    cur,
+						IsDir:      false,
+					})
+					return nil
+				})
+			}
+			continue
+		}
+
+		// For regular files, wait until write close / atomic rename / delete so O_CREAT or O_TRUNC
+		// never triggers inspection on a 0-byte mid-write file descriptor.
+		if !isDir && (mask&uint32(inotifyFileActionMask) == 0) {
+			continue
 		}
 
 		if cb != nil {

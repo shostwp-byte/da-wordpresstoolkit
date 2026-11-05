@@ -29,19 +29,23 @@ type Resolver struct {
 }
 
 func NewResolver(optionsConfPath, usrLocalRoot string) *Resolver {
+	customRoot := usrLocalRoot != ""
 	if optionsConfPath == "" {
 		optionsConfPath = DefaultOptionsConfPath
 	}
 	if usrLocalRoot == "" {
 		usrLocalRoot = DefaultUsrLocalRoot
 	}
+	fallbacks := []string{
+		filepath.Join(usrLocalRoot, "bin", "php"),
+	}
+	if !customRoot {
+		fallbacks = append(fallbacks, "/usr/bin/php")
+	}
 	return &Resolver{
 		OptionsConfPath: optionsConfPath,
 		UsrLocalRoot:    usrLocalRoot,
-		FallbackBins: []string{
-			filepath.Join(usrLocalRoot, "bin", "php"),
-			"/usr/bin/php",
-		},
+		FallbackBins:    fallbacks,
 	}
 }
 
