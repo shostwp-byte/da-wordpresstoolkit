@@ -51,13 +51,17 @@ emergency_shell_rollback() {
     if [[ -d "${RB_TMP}/plugin" ]]; then
       for sub in admin user hooks images scripts; do
         if [[ -d "${RB_TMP}/plugin/${sub}" ]]; then
-          mkdir -p "${PLUGIN_DST}/${sub}"
+          install -d -m 0755 "${PLUGIN_DST}/${sub}"
           cp -rf "${RB_TMP}/plugin/${sub}/." "${PLUGIN_DST}/${sub}/"
+          find "${PLUGIN_DST}/${sub}" -type d -exec chmod 0755 {} +
+          find "${PLUGIN_DST}/${sub}" -type f -exec chmod 0644 {} +
         fi
       done
       if [[ -f "${RB_TMP}/plugin/plugin.conf" ]]; then
         install -m 0644 "${RB_TMP}/plugin/plugin.conf" "${PLUGIN_DST}/plugin.conf"
       fi
+      chmod 0755 "$PLUGIN_DST" "${PLUGIN_DST}/admin/index.html" "${PLUGIN_DST}/admin/api.raw" "${PLUGIN_DST}/user/index.html" "${PLUGIN_DST}/user/api.raw" 2>/dev/null || true
+      chmod 0755 "${PLUGIN_DST}/scripts/"*.sh 2>/dev/null || true
       if id diradmin >/dev/null 2>&1; then
         chown -R diradmin:diradmin "$PLUGIN_DST"
       fi
@@ -70,9 +74,17 @@ emergency_shell_rollback() {
 # Mode 1: Invoked with pre-verified --staged payload & --backup snapshot
 if [[ -n "$STAGED_DIR" && -n "$BACKUP_TAR" ]]; then
   if "$BIN_DST" apply-staged --staged "$STAGED_DIR" --backup "$BACKUP_TAR" --target-version "$TARGET_VER" --sock "$ADMIN_SOCK"; then
-    if id diradmin >/dev/null 2>&1 && [[ -d "$PLUGIN_DST" ]]; then
-      chown -R diradmin:diradmin "$PLUGIN_DST"
+    if [[ -d "$PLUGIN_DST" ]]; then
+      find "${PLUGIN_DST}/admin" "${PLUGIN_DST}/user" "${PLUGIN_DST}/hooks" "${PLUGIN_DST}/images" "${PLUGIN_DST}/scripts" -type d -exec chmod 0755 {} + 2>/dev/null || true
+      find "${PLUGIN_DST}/admin" "${PLUGIN_DST}/user" "${PLUGIN_DST}/hooks" "${PLUGIN_DST}/images" -type f -exec chmod 0644 {} + 2>/dev/null || true
+      chmod 0644 "${PLUGIN_DST}/plugin.conf" 2>/dev/null || true
+      chmod 0755 "$PLUGIN_DST" "${PLUGIN_DST}/admin/index.html" "${PLUGIN_DST}/admin/api.raw" "${PLUGIN_DST}/user/index.html" "${PLUGIN_DST}/user/api.raw" 2>/dev/null || true
+      chmod 0755 "${PLUGIN_DST}/scripts/"*.sh 2>/dev/null || true
+      if id diradmin >/dev/null 2>&1; then
+        chown -R diradmin:diradmin "$PLUGIN_DST"
+      fi
     fi
+    systemctl reload-or-restart directadmin.service >/dev/null 2>&1 || true
     exit 0
   fi
 

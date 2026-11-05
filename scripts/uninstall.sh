@@ -72,6 +72,12 @@ if command -v systemctl >/dev/null 2>&1; then
   systemctl daemon-reload >/dev/null 2>&1 || true
 fi
 rm -f "$ADMIN_SOCK" "$USER_SOCK"
+rm -rf /var/run/da-wptoolkit
+
+if [[ -f /etc/cagefs/cagefs.mp ]] && command -v cagefsctl >/dev/null 2>&1; then
+  sed -i '\|^/run/da-wptoolkit$|d; \|^/var/run/da-wptoolkit$|d; \|^/usr/local/directadmin/plugins/da_wp_toolkits$|d' /etc/cagefs/cagefs.mp 2>/dev/null || true
+  cagefsctl --remount-all >/dev/null 2>&1 || true
+fi
 
 echo "[3/5] Removing DirectAdmin Event Hooks & custom Nginx snippets..."
 HOOK_NAMES=(
@@ -99,6 +105,9 @@ fi
 echo "[4/5] Removing daemon binary & DirectAdmin plugin files..."
 rm -f "$BIN_DST"
 rm -rf "$SHARE_DST" "$PLUGIN_DST"
+if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet directadmin.service 2>/dev/null; then
+  systemctl reload-or-restart directadmin.service >/dev/null 2>&1 || true
+fi
 
 if [[ "$PURGE_DATA" -eq 1 ]]; then
   echo "[5/5] Purging state store, Core cache & configuration (--purge-data)..."

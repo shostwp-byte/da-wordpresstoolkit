@@ -8,7 +8,12 @@ Wants=network.target
 Type=simple
 User=root
 Group=root
+RuntimeDirectory=da-wptoolkit
+RuntimeDirectoryMode=0755
+Environment="DA_WPTK_MIN_UID=500"
+Environment="DA_WPTK_USER_SOCK=/var/run/da-wptoolkit/user.sock"
 ExecStart=/usr/local/sbin/da-wptoolkit serve
+ExecStartPost=-/bin/ln -sfn /var/run/da-wptoolkit/user.sock /var/run/da-wptoolkit-user.sock
 Restart=always
 RestartSec=2s
 

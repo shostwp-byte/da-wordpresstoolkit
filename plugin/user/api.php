@@ -235,7 +235,18 @@ $ipcReq = [
     'params'      => isset($input['params']) && is_array($input['params']) ? $input['params'] : [],
 ];
 
-$sockPath = getenv('DA_WPTK_USER_SOCK') ?: '/var/run/da-wptoolkit-user.sock';
+$sockPath = trim((string) (getenv('DA_WPTK_USER_SOCK') ?: ''));
+if ($sockPath === '') {
+    foreach (['/run/da-wptoolkit/user.sock', '/var/run/da-wptoolkit/user.sock', '/var/run/da-wptoolkit-user.sock'] as $candidateSock) {
+        if (file_exists($candidateSock)) {
+            $sockPath = $candidateSock;
+            break;
+        }
+    }
+    if ($sockPath === '') {
+        $sockPath = '/var/run/da-wptoolkit-user.sock';
+    }
+}
 
 function call_user_daemon(string $sockPath, array $reqPayload): array
 {
